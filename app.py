@@ -18,6 +18,14 @@ from typing import Dict, Any, Optional, Union, List
 # 添加src目錄到Python路徑
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
+# 頁面配置（必須在任何其他Streamlit命令之前）
+st.set_page_config(
+    page_title="投資策略比較分析",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # 第1章模組導入（保持不變）
 try:
     from src.data_sources.tiingo_client import TiingoDataFetcher
@@ -111,13 +119,7 @@ def main():
     """
     主應用程式函數 - 3.6.1節規格
     """
-    # 頁面配置（嚴格按照規格）
-    st.set_page_config(
-        page_title="投資策略比較分析",
-        page_icon="🏠",
-        layout="wide",
-        initial_sidebar_state="collapsed"
-    )
+    # 注意：st.set_page_config() 只能在腳本開始時調用一次
     
     # 應用程式初始化（整合第1章）
     simple_app_initialization()
