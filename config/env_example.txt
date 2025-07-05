@@ -1,0 +1,10 @@
+# API Keys for Investment Strategy Comparison System
+# Copy this content to .env file in project root and fill in your actual API keys
+
+# Tiingo API Key (for stock data)
+# Get your free key at: https://api.tiingo.com/
+TIINGO_API_KEY=your_tiingo_api_key_here
+
+# FRED API Key (for bond/economic data) 
+# Get your free key at: https://fred.stlouisfed.org/docs/api/api_key.html
+FRED_API_KEY=your_fred_api_key_here 
