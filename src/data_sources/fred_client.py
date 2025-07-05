@@ -56,18 +56,20 @@ class FREDDataFetcher:
         if not api_key:
             raise ValueError("無法獲取FRED API金鑰")
         
-        if not validate_api_key_format(api_key, 'fred'):
+        if not validate_api_key_format('FRED_API_KEY', api_key):
             raise ValueError("FRED API金鑰格式無效")
         
         self.api_key = api_key
         self.base_url = "https://api.stlouisfed.org/fred/series/observations"
         
         # 第1章規格：APIFaultToleranceManager 容錯機制
-        self.fault_tolerance = APIFaultToleranceManager(
+        from .fault_tolerance import RetryConfig
+        retry_config = RetryConfig(
             max_retries=3,
             base_delay=1.0,
             backoff_factor=2.0
         )
+        self.fault_tolerance = APIFaultToleranceManager(retry_config)
         
         logger.info("FRED數據獲取器已初始化")
     

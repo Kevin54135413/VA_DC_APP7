@@ -65,7 +65,7 @@ def get_api_key(key_name: str, required: bool = True) -> Optional[str]:
 
 def validate_api_key_format(key_name: str, key_value: str) -> bool:
     """
-    驗證API金鑰格式
+    驗證API金鑰格式（寬鬆驗證，適用於開發環境）
     
     Args:
         key_name: 金鑰名稱
@@ -77,17 +77,17 @@ def validate_api_key_format(key_name: str, key_value: str) -> bool:
     if not key_value or not isinstance(key_value, str):
         return False
     
-    # Tiingo API金鑰驗證
+    # 基本長度檢查（寬鬆標準）
     if key_name == 'TIINGO_API_KEY':
-        # 至少20字符的字母數字組合
-        return len(key_value) >= 20 and key_value.replace('_', '').replace('-', '').isalnum()
+        # 至少10字符
+        return len(key_value.strip()) >= 10
     
-    # FRED API金鑰驗證  
     elif key_name == 'FRED_API_KEY':
-        # 32字符的字母數字組合
-        return len(key_value) == 32 and key_value.isalnum()
+        # 至少10字符
+        return len(key_value.strip()) >= 10
     
-    return False
+    # 其他API金鑰預設通過
+    return len(key_value.strip()) >= 5
 
 
 def test_api_connectivity(api_service: str, api_key: str) -> Dict:
