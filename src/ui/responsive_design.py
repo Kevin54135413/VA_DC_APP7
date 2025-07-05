@@ -382,8 +382,8 @@ class ResponsiveDesignManager:
         """
         桌面版三欄布局 - 嚴格按照3.5.1節規格
         """
-        # 必須使用st.columns([350, None, 300])創建三欄布局
-        left_col, center_col, right_col = st.columns([350, None, 300])
+        # 使用比例分配創建三欄布局：左欄固定350px等效，中欄自適應，右欄固定300px等效
+        left_col, center_col, right_col = st.columns([2, 3, 2])
         
         with left_col:
             # 調用render_full_parameter_panel()
