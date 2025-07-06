@@ -279,6 +279,19 @@ def apply_modern_styling():
         border: 2px solid #3b82f6 !important;
     }
     
+    /* 強制移除所有滑桿相關的陰影效果 */
+    .stSlider, .stSlider *, 
+    .stSlider > div, .stSlider > div *,
+    .stSlider [data-baseweb="slider"], .stSlider [data-baseweb="slider"] *,
+    .stSlider [data-testid="stSlider"], .stSlider [data-testid="stSlider"] *,
+    .stSlider [role="slider"], .stSlider [role="slider"] * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+        filter: none !important;
+        -webkit-box-shadow: none !important;
+        -moz-box-shadow: none !important;
+    }
+    
     .stButton > button {
         border-radius: 8px !important;
         font-weight: 500 !important;
