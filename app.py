@@ -441,6 +441,10 @@ def detect_device_and_layout():
     """
     檢測設備並渲染對應布局 - 整合響應式設計
     """
+    # 首先確保參數管理器已初始化 - 修正：解決session state初始化順序問題
+    if 'parameter_manager' not in st.session_state:
+        st.session_state.parameter_manager = ParameterManager()
+    
     # 創建響應式設計管理器
     if 'responsive_manager' not in st.session_state:
         st.session_state.responsive_manager = ResponsiveDesignManager()

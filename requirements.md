@@ -143,9 +143,14 @@ GET https://api.stlouisfed.org/fred/series/observations
 **模擬數據日期設定規則**
 
 **第1期初始日期設定原則**
-- **統一起始點**: 當下日期的次一年1月1日作為第1期起始日
-- **範例**: 若當前為2025年任何日期，模擬第1期起始日期設為2026年1月1日
-- **設計原因**: 確保模擬數據具有完整的未來時間軸，避免與歷史數據混淆
+- **使用者輸入**: 由使用者透過日期選擇器輸入第1期起始日期
+- **預設值**: 當下日期的次一年1月1日作為預設起始日
+- **範例**: 若當前為2025年任何日期，預設第1期起始日期為2026年1月1日，使用者可自由修改
+- **設計原因**: 提供彈性的投資起始時間設定，同時保持合理的預設值
+- **輸入限制**: 
+  - 最早日期：當前日期
+  - 最晚日期：當前日期後10年
+  - 自動調整為交易日：若選擇非交易日，系統自動調整為下一個交易日
 
 **期初期末日期計算邏輯**
 
@@ -259,20 +264,25 @@ def calculate_period_end_dates(base_start_date, frequency, period_number):
 
 **完整時間軸生成架構**
 ```python
-def generate_simulation_timeline(investment_years, frequency):
+def generate_simulation_timeline(investment_years, frequency, user_start_date=None):
     """
     生成完整模擬數據時間軸，包含交易日調整
     
     Args:
         investment_years: 投資年數
         frequency: 投資頻率
+        user_start_date: 使用者指定的起始日期，若為None則使用預設值
     
     Returns:
         list: 包含每期完整時間資訊的列表
     """
-    # 設定起始日期為次年1月1日
-    current_year = datetime.now().year
-    base_start_date = datetime(current_year + 1, 1, 1)
+    # 設定起始日期：使用者輸入或預設為次年1月1日
+    if user_start_date is None:
+        current_year = datetime.now().year
+        base_start_date = datetime(current_year + 1, 1, 1)
+    else:
+        # 確保使用者輸入的日期為交易日
+        base_start_date = adjust_for_trading_days(user_start_date, 'next')
     
     # 計算總期數
     periods_per_year = {
@@ -3054,7 +3064,7 @@ MODERN_HEADER_SPECS = {
                 "simulation": {"icon": "🟡", "tooltip": "使用模擬數據"},
                 "offline": {"icon": "🔴", "tooltip": "離線模式"}
             },
-            "auto_fallback": True,  # 自動切換數據源
+            "intelligent_fallback": True,  # 智能數據源回退機制
             "user_notification": "minimal"  # 僅必要時提醒
         },
         "chapter1_integration": {
@@ -3076,8 +3086,8 @@ BASIC_PARAMETERS = {
     "initial_investment": {
         "component": "slider_with_input",
         "label": "💰 期初投入金額",
-        "range": [100000, 10000000],  # 10萬-1000萬
-        "default": 100000,
+        "range": [0, 10000000],  # 0-1000萬
+        "default": 10000,
         "step": 50000,
         "format": "currency",
         "help": "投資策略的起始資金",
@@ -3094,11 +3104,38 @@ BASIC_PARAMETERS = {
             "formula_references": ["calculate_va_target_value", "calculate_dca_investment"]
         }
     },
+    "investment_start_date": {
+        "component": "date_input",
+        "label": "📅 投資起始日期",
+        "default": "next_year_jan_1",  # 預設為次年1月1日
+        "min_date": "today",  # 最早為當前日期
+        "max_date": "today_plus_10_years",  # 最晚為當前日期後10年
+        "format": "YYYY-MM-DD",
+        "help": "第1期投資的起始日期，系統會自動調整為交易日",
+        "auto_adjustment": {
+            "trading_day_check": True,
+            "adjustment_direction": "next",  # 若非交易日，調整為下一個交易日
+            "holiday_calendar": "US_Federal_Holiday"
+        },
+        # 第1章時間軸生成集成
+        "chapter1_integration": {
+            "timeline_generation": "generate_simulation_timeline",
+            "trading_day_adjustment": "adjust_for_trading_days",
+            "period_calculation": "calculate_period_start_date",
+            "data_fetching_range": "get_target_dates_for_data_fetching"
+        },
+        # 第2章計算邏輯集成
+        "chapter2_integration": {
+            "base_date_parameter": "所有期間計算的基準日期",
+            "timeline_dependency": "影響所有期初期末日期計算",
+            "market_data_scope": "決定API數據獲取範圍"
+        }
+    },
     "investment_years": {
         "component": "slider",
         "label": "⏱️ 投資年數",
         "range": [5, 40],
-        "default": 10,
+        "default": 30,
         "step": 1,
         "format": "integer",
         "help": "投資策略執行的總年數",
@@ -3174,6 +3211,103 @@ BASIC_PARAMETERS = {
 }
 ```
 
+**起始日期參數實現函數**
+
+```python
+def _render_investment_start_date(self):
+    """渲染投資起始日期參數 - 嚴格按照規格"""
+    param = self.basic_params["investment_start_date"]
+    
+    # 計算預設日期（次年1月1日）
+    from datetime import datetime, timedelta
+    current_year = datetime.now().year
+    default_date = datetime(current_year + 1, 1, 1).date()
+    
+    # 計算日期範圍
+    min_date = datetime.now().date()  # 今天
+    max_date = (datetime.now() + timedelta(days=365*10)).date()  # 10年後
+    
+    # 渲染日期選擇器
+    selected_date = st.date_input(
+        param["label"],
+        value=st.session_state.get('investment_start_date', default_date),
+        min_value=min_date,
+        max_value=max_date,
+        format=param["format"],
+        help=param["help"],
+        key="investment_start_date"
+    )
+    
+    # 交易日調整檢查
+    if selected_date:
+        from src.data_sources.trading_calendar import adjust_for_trading_days
+        
+        # 轉換為datetime進行交易日檢查
+        selected_datetime = datetime.combine(selected_date, datetime.min.time())
+        adjusted_datetime = adjust_for_trading_days(selected_datetime, 'next')
+        adjusted_date = adjusted_datetime.date()
+        
+        # 顯示調整資訊
+        if selected_date != adjusted_date:
+            st.warning(f"⚠️ 所選日期 {selected_date} 非交易日，已自動調整為 {adjusted_date}")
+            st.session_state.investment_start_date = adjusted_date
+        else:
+            st.success(f"✅ 已選擇投資起始日期: {selected_date}")
+            st.session_state.investment_start_date = selected_date
+    
+    # 顯示時間軸預覽
+    if hasattr(st.session_state, 'investment_start_date') and hasattr(st.session_state, 'investment_years') and hasattr(st.session_state, 'investment_frequency'):
+        start_date = st.session_state.investment_start_date
+        years = st.session_state.investment_years
+        frequency = st.session_state.investment_frequency
+        
+        # 計算結束日期
+        if frequency == "monthly":
+            end_date = start_date.replace(year=start_date.year + years)
+        elif frequency == "quarterly":
+            end_date = start_date.replace(year=start_date.year + years)
+        elif frequency == "semi_annually":
+            end_date = start_date.replace(year=start_date.year + years)
+        elif frequency == "annually":
+            end_date = start_date.replace(year=start_date.year + years)
+        
+        st.info(f"📅 投資期間預覽: {start_date} 至 {end_date} ({years} 年)")
+    
+    # 顯示第1章和第2章整合資訊
+    with st.expander("🔧 技術整合資訊", expanded=False):
+        st.markdown("**第1章時間軸生成整合**")
+        ch1_integration = param['chapter1_integration']
+        for key, value in ch1_integration.items():
+            st.markdown(f"• **{key}**: {value}")
+        
+        st.markdown("**第2章計算邏輯整合**")
+        ch2_integration = param['chapter2_integration']
+        for key, value in ch2_integration.items():
+            st.markdown(f"• **{key}**: {value}")
+
+def render_basic_parameters(self):
+    """渲染基本參數區域 - 永遠可見，包含起始日期"""
+    st.header("🎯 投資設定")
+    
+    # 💰 期初投入金額 - slider_with_input
+    self._render_initial_investment()
+    
+    # 📅 投資起始日期 - date_input (新增)
+    self._render_investment_start_date()
+    
+    # 💳 年度投入金額 - slider_with_input
+    self._render_annual_investment()
+    
+    # ⏱️ 投資年數 - slider
+    self._render_investment_years()
+    
+    # 📅 投資頻率 - radio_buttons
+    self._render_investment_frequency()
+    
+    # 📊 股債配置 - dual_slider
+    self._render_asset_allocation()
+```
+
 #### 3.2.2 進階設定（可摺疊）
 
 ```python
@@ -3186,7 +3320,7 @@ ADVANCED_SETTINGS = {
     "va_growth_rate": {
         "component": "slider",
         "label": "📈 VA策略目標成長率",
-        "range": [-20, 50],  # 支援負成長率到極高成長率
+        "range": [0, 100],  # 支援負成長率到極高成長率
         "default": 13,
         "step": 1.0,
         "format": "percentage",
@@ -3226,32 +3360,49 @@ ADVANCED_SETTINGS = {
         }
     },
     "data_source": {
-        "component": "smart_auto_selection",
+        "component": "user_controlled_selection",
         "label": "📊 數據來源",
-        "auto_mode": True,  # 預設自動選擇
-        "manual_override": {
+        "default_mode": "real_data",  # 預設使用真實市場數據
+        "user_options": {
             "options": [
                 {
                     "value": "real_data",
                     "label": "真實市場數據",
                     "description": "Tiingo API + FRED API",
-                    "icon": "🌐"
+                    "icon": "🌐",
+                    "priority": 1  # 預設選項
                 },
                 {
                     "value": "simulation",
                     "label": "模擬數據",
                     "description": "基於歷史統計的模擬",
-                    "icon": "🎲"
+                    "icon": "🎲",
+                    "priority": 2
                 }
             ]
         },
-        "smart_fallback": True,  # 自動切換失敗的數據源
+        "intelligent_fallback": {
+            "enabled": True,
+            "trigger_condition": "date_range_data_unavailable",  # 當指定日期範圍無API數據時觸發
+            "fallback_logic": {
+                "step1": "檢查用戶指定的起始日期+投資年數範圍",
+                "step2": "驗證該期間內API數據可用性",
+                "step3": "若API數據不足，自動啟用模擬數據並通知用戶",
+                "step4": "保留用戶原始選擇，僅在必要時臨時切換"
+            },
+            "user_notification": {
+                "data_sufficient": "✅ 指定期間內API數據完整可用",
+                "data_insufficient": "⚠️ 指定期間部分時段無API數據，已自動補充模擬數據",
+                "data_unavailable": "🔄 指定期間無API數據，已切換為模擬數據模式"
+            }
+        },
         # 第1章數據源完整集成
         "chapter1_integration": {
             "api_security_mechanisms": True,
             "fault_tolerance_strategy": True,
             "data_quality_validation": True,
-            "simulation_model_specs": "幾何布朗運動 + Vasicek模型"
+            "simulation_model_specs": "幾何布朗運動 + Vasicek模型",
+            "date_range_validation": True  # 新增：日期範圍數據可用性驗證
         }
     }
 }
@@ -3545,36 +3696,99 @@ DATA_TABLES_CONFIG = {
 
 ### 3.4 智能功能與用戶體驗
 
-#### 3.4.1 智能數據源管理
+#### 3.4.1 用戶控制的數據源管理
 
 ```python
 @st.cache_data(ttl=3600)
-def smart_data_source_manager():
+def user_controlled_data_source_manager(user_selection, start_date, investment_years):
     """
-    智能數據源管理（第1章完整技術規範保留）
+    用戶控制的數據源管理（第1章完整技術規範保留）
+    
+    Args:
+        user_selection: 用戶選擇的數據源 ('real_data' 或 'simulation')
+        start_date: 投資起始日期
+        investment_years: 投資年數
+    
+    Returns:
+        數據源狀態和數據
+    """
+    # 計算投資期間範圍
+    end_date = start_date + timedelta(days=investment_years * 365)
+    
+    if user_selection == "real_data":
+        try:
+            # 檢查指定期間內API數據可用性
+            data_coverage = check_api_data_coverage(start_date, end_date)
+            
+            if data_coverage["coverage_ratio"] >= 0.95:  # 95%以上數據可用
+                # 使用真實API數據
+                data = get_real_market_data_with_security(start_date, end_date)
+                st.session_state.data_source_status = "real_data"
+                st.success("✅ 指定期間內API數據完整可用")
+                return {"status": "real_data", "data": data}
+                
+            elif data_coverage["coverage_ratio"] >= 0.5:  # 50%-95%數據可用
+                # 混合使用：API數據 + 模擬數據補充
+                data = get_hybrid_market_data(start_date, end_date)
+                st.session_state.data_source_status = "hybrid"
+                st.warning("⚠️ 指定期間部分時段無API數據，已自動補充模擬數據")
+                return {"status": "hybrid", "data": data}
+                
+            else:  # 數據不足50%
+                # 自動切換到模擬數據並通知用戶
+                data = get_simulation_data_chapter1_compliant(start_date, end_date)
+                st.session_state.data_source_status = "simulation_fallback"
+                st.info("🔄 指定期間無充足API數據，已切換為模擬數據模式")
+                return {"status": "simulation_fallback", "data": data}
+                
+        except APIConnectionError:
+            # API連接失敗，切換到模擬數據
+            st.warning("🌐 API連接失敗，已切換為模擬數據模式")
+            data = get_simulation_data_chapter1_compliant(start_date, end_date)
+            st.session_state.data_source_status = "simulation_fallback"
+            return {"status": "simulation_fallback", "data": data}
+            
+    elif user_selection == "simulation":
+        # 用戶主動選擇模擬數據
+        data = get_simulation_data_chapter1_compliant(start_date, end_date)
+        st.session_state.data_source_status = "simulation"
+        st.info("🎲 正在使用模擬數據進行分析")
+        return {"status": "simulation", "data": data}
+    
+    # 預設回退
+    st.session_state.data_source_status = "offline"
+    return {"status": "offline", "data": get_cached_data_or_default()}
+
+def check_api_data_coverage(start_date, end_date):
+    """
+    檢查指定日期範圍內API數據的覆蓋率
+    
+    Returns:
+        Dict: 包含覆蓋率和缺失期間的資訊
     """
     try:
-        # 嘗試真實數據（第1章API安全機制）
-        data = get_real_market_data_with_security()
-        st.session_state.data_source_status = "real_data"
-        return data
-    except APIConnectionError:
-        # 自動切換到模擬數據（第1章容錯機制）
-        st.info("💡 正在使用模擬數據進行分析")
-        st.session_state.data_source_status = "simulation"
-        return get_simulation_data_chapter1_compliant()
-    except Exception as e:
-        # 離線模式（第1章降級策略）
-        st.warning("🌐 網路連線問題，已切換為離線模式")
-        st.session_state.data_source_status = "offline"
-        return get_cached_data_or_default()
+        # 檢查Tiingo API數據可用性
+        tiingo_coverage = check_tiingo_data_range(start_date, end_date)
+        # 檢查FRED API數據可用性  
+        fred_coverage = check_fred_data_range(start_date, end_date)
+        
+        overall_coverage = min(tiingo_coverage, fred_coverage)
+        
+        return {
+            "coverage_ratio": overall_coverage,
+            "tiingo_coverage": tiingo_coverage,
+            "fred_coverage": fred_coverage,
+            "data_sufficient": overall_coverage >= 0.95
+        }
+    except Exception:
+        return {"coverage_ratio": 0.0, "data_sufficient": False}
 
 def user_friendly_error_handler(error_type, technical_error=None):
     """
     將技術錯誤轉換為用戶友善訊息
     """
     error_messages = {
-        "api_error": "🌐 網路連線問題，已自動切換為模擬數據",
+                        "api_error": "🌐 網路連線問題，已根據用戶設定切換數據源",
         "calculation_error": "⚠️ 參數設定需要調整，請檢查投入金額範圍", 
         "data_error": "📊 數據載入中，請稍候片刻",
         "validation_error": "🔍 輸入參數有誤，請檢查設定值"
@@ -3967,7 +4181,7 @@ CHAPTER1_INTEGRATION_CHECKLIST = {
     },
     "api_security": {
         "multilevel_keys": "背景自動管理",
-        "fault_tolerance": "無縫自動切換",
+        "fault_tolerance": "用戶控制的智能回退",
         "retry_mechanism": "智能重試策略",
         "backup_strategy": "模擬數據降級",
         "user_experience": "零感知切換"
@@ -4044,7 +4258,7 @@ IMPLEMENTATION_CHECKLIST = {
         "accessibility": "✅ 無障礙設計符合標準"
     },
     "smart_features": {
-        "auto_data_source": "✅ 智能數據源自動切換",
+        "user_controlled_data_source": "✅ 用戶控制的智能數據源選擇",
         "personalized_recommendations": "✅ 個人化投資建議",
         "progressive_loading": "✅ 漸進式載入與反饋",
         "error_recovery": "✅ 智能錯誤恢復機制"
@@ -5072,3 +5286,84 @@ if __name__ == "__main__":
 4. **降低依賴**：最小化套件需求，使用內建功能
 
 這樣的簡化版本可以快速部署，同時保持系統的核心功能完整性。
+
+---
+
+## 📅 起始日期參數整合更新
+
+### 參數獲取函數更新
+
+```python
+def get_all_parameters(self) -> Dict[str, Any]:
+    """獲取所有參數值 - 供計算引擎使用，包含起始日期"""
+    return {
+        # 基本參數
+        "initial_investment": st.session_state.initial_investment,
+        "investment_start_date": st.session_state.get('investment_start_date', None),  # 新增起始日期
+        "annual_investment": st.session_state.annual_investment,
+        "investment_years": st.session_state.investment_years,
+        "investment_frequency": st.session_state.investment_frequency,
+        "stock_ratio": st.session_state.stock_ratio,
+        "bond_ratio": 100 - st.session_state.stock_ratio,
+        
+        # 進階設定
+        "va_growth_rate": st.session_state.va_growth_rate,
+        "inflation_adjustment": st.session_state.inflation_adjustment,
+        "inflation_rate": st.session_state.inflation_rate if st.session_state.inflation_adjustment else 0,
+        "data_source_mode": st.session_state.get("data_source_mode", "auto"),
+        
+        # 計算衍生參數
+        "total_periods": self._calculate_total_periods(),
+        "periods_per_year": self._get_periods_per_year()
+    }
+```
+
+### Session State 初始化更新
+
+```python
+def _initialize_session_state(self):
+    """初始化Streamlit會話狀態 - 包含起始日期"""
+    # 基本參數預設值
+    if 'initial_investment' not in st.session_state:
+        st.session_state.initial_investment = self.basic_params["initial_investment"]["default"]
+    
+    if 'investment_start_date' not in st.session_state:
+        # 預設為次年1月1日
+        from datetime import datetime
+        current_year = datetime.now().year
+        default_date = datetime(current_year + 1, 1, 1).date()
+        st.session_state.investment_start_date = default_date
+    
+    if 'annual_investment' not in st.session_state:
+        st.session_state.annual_investment = self.basic_params["annual_investment"]["default"]
+    
+    # ... 其他參數初始化保持不變
+```
+
+### 時間軸生成函數調用更新
+
+```python
+def _fetch_real_market_data(self, parameters: Dict[str, Any]) -> pd.DataFrame:
+    """獲取真實市場數據 - 使用使用者指定的起始日期"""
+    try:
+        # 使用使用者指定的起始日期
+        if parameters.get("investment_start_date"):
+            start_date = parameters["investment_start_date"]
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d')
+            elif hasattr(start_date, 'date'):
+                start_date = start_date.date()
+            start_date = datetime.combine(start_date, datetime.min.time())
+        else:
+            # 回退到預設值
+            current_year = datetime.now().year
+            start_date = datetime(current_year + 1, 1, 1)
+        
+        # 計算結束日期
+        total_periods = parameters["total_periods"]
+        end_date = start_date + timedelta(days=total_periods * 30)
+        
+        # ... 其餘實現保持不變
+```
+
+這些更新確保起始日期參數完全整合到系統中，使用者可以靈活設定投資開始時間。
