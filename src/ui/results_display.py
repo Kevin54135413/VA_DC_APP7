@@ -23,7 +23,15 @@ from models.calculation_formulas import calculate_annualized_return
 from models.strategy_engine import calculate_va_strategy, calculate_dca_strategy
 from models.table_calculator import calculate_summary_metrics
 from models.table_specifications import VA_COLUMNS_ORDER, DCA_COLUMNS_ORDER, PERCENTAGE_PRECISION_RULES
-from models.chart_visualizer import create_strategy_comparison_chart, create_bar_chart, create_line_chart
+from models.chart_visualizer import (
+    create_strategy_comparison_chart, 
+    create_bar_chart, 
+    create_line_chart,
+    create_risk_return_scatter,
+    create_drawdown_chart,
+    create_investment_flow_chart,
+    create_allocation_pie_chart
+)
 
 # ============================================================================
 # 3.3.1 頂部摘要卡片實作 - SUMMARY_METRICS_DISPLAY
@@ -873,11 +881,13 @@ class ResultsDisplayManager:
             st.info("請設定投資參數後開始分析")
             return
         
-        # 標籤導航
-        tab1, tab2, tab3 = st.tabs([
+        # 標籤導航 - 擴展為完整圖表功能
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📈 資產成長",
             "📊 報酬比較", 
-            "⚠️ 風險分析"
+            "⚠️ 風險分析",
+            "📉 回撤分析",
+            "💰 投資流分析"
         ])
         
         with tab1:
@@ -888,6 +898,12 @@ class ResultsDisplayManager:
         
         with tab3:
             self._render_risk_analysis_chart()
+        
+        with tab4:
+            self._render_drawdown_analysis_chart()
+        
+        with tab5:
+            self._render_investment_flow_chart()
     
     def _render_asset_growth_chart(self):
         """渲染資產成長圖表"""
@@ -900,32 +916,15 @@ class ResultsDisplayManager:
         va_df = self.calculation_results["va_rebalance_df"]
         dca_df = self.calculation_results["dca_df"]
         
-        # 合併數據用於圖表
-        va_chart_data = va_df[["Period", "Cum_Value"]].copy()
-        va_chart_data["Strategy"] = "VA策略"
-        
-        dca_chart_data = dca_df[["Period", "Cum_Value"]].copy()
-        dca_chart_data["Strategy"] = "DCA策略"
-        
-        combined_data = pd.concat([va_chart_data, dca_chart_data], ignore_index=True)
-        
-        # 使用Plotly創建互動圖表
-        fig = px.line(
-            combined_data,
-            x="Period",
-            y="Cum_Value",
-            color="Strategy",
-            title="資產成長趨勢比較",
-            labels={"Period": "投資期數", "Cum_Value": "累積資產價值 ($)"}
+        # 使用第2章第2.3節的Altair圖表系統
+        chart = create_strategy_comparison_chart(
+            va_rebalance_df=va_df,
+            va_nosell_df=None,
+            dca_df=dca_df,
+            chart_type="cumulative_value"
         )
         
-        fig.update_layout(
-            hovermode='x unified',
-            xaxis_title="投資期數",
-            yaxis_title="累積資產價值 ($)"
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        st.altair_chart(chart, use_container_width=True)
     
     def _render_return_comparison_chart(self):
         """渲染報酬比較圖表"""
@@ -936,22 +935,15 @@ class ResultsDisplayManager:
         
         summary_df = self.calculation_results["summary_df"]
         
-        # 創建水平柱狀圖
-        fig = px.bar(
-            summary_df,
-            x="Annualized_Return",
-            y="Strategy",
-            orientation='h',
-            title="年化報酬率比較",
-            labels={"Annualized_Return": "年化報酬率 (%)", "Strategy": "投資策略"}
+        # 使用第2章第2.3節的Altair圖表系統
+        chart = create_bar_chart(
+            data_df=summary_df,
+            x_field="Annualized_Return",
+            y_field="Strategy",
+            title="年化報酬率比較"
         )
         
-        fig.update_layout(
-            xaxis_title="年化報酬率 (%)",
-            yaxis_title="投資策略"
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        st.altair_chart(chart, use_container_width=True)
     
     def _render_risk_analysis_chart(self):
         """渲染風險分析圖表"""
@@ -962,43 +954,61 @@ class ResultsDisplayManager:
         
         summary_df = self.calculation_results["summary_df"]
         
-        # 創建風險指標比較
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=("波動率", "夏普比率", "最大回撤", "總報酬率"),
-            specs=[[{"type": "bar"}, {"type": "bar"}],
-                   [{"type": "bar"}, {"type": "bar"}]]
-        )
+        # 使用第2章第2.3節的Altair圖表系統 - 風險收益散點圖
+        chart = create_risk_return_scatter(summary_df)
         
-        strategies = summary_df["Strategy"].tolist()
+        st.altair_chart(chart, use_container_width=True)
         
-        # 波動率
-        fig.add_trace(
-            go.Bar(x=strategies, y=summary_df["Volatility"], name="波動率"),
-            row=1, col=1
-        )
+        # 額外顯示風險指標比較表格
+        st.markdown("**詳細風險指標**")
+        risk_metrics = summary_df[["Strategy", "Volatility", "Sharpe_Ratio", "Max_Drawdown", "Total_Return"]].copy()
+        st.dataframe(risk_metrics, use_container_width=True)
+    
+    def _render_drawdown_analysis_chart(self):
+        """渲染回撤分析圖表"""
+        st.markdown("**回撤分析**")
         
-        # 夏普比率
-        fig.add_trace(
-            go.Bar(x=strategies, y=summary_df["Sharpe_Ratio"], name="夏普比率"),
-            row=1, col=2
-        )
+        if not self.calculation_results:
+            return
         
-        # 最大回撤
-        fig.add_trace(
-            go.Bar(x=strategies, y=summary_df["Max_Drawdown"], name="最大回撤"),
-            row=2, col=1
-        )
+        # 為每個策略創建回撤分析圖表
+        va_df = self.calculation_results["va_rebalance_df"]
+        dca_df = self.calculation_results["dca_df"]
         
-        # 總報酬率
-        fig.add_trace(
-            go.Bar(x=strategies, y=summary_df["Total_Return"], name="總報酬率"),
-            row=2, col=2
-        )
+        col1, col2 = st.columns(2)
         
-        fig.update_layout(height=600, showlegend=False)
+        with col1:
+            st.markdown("**VA策略回撤分析**")
+            va_drawdown_chart = create_drawdown_chart(va_df, "VA_Rebalance")
+            st.altair_chart(va_drawdown_chart, use_container_width=True)
         
-        st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            st.markdown("**DCA策略回撤分析**")
+            dca_drawdown_chart = create_drawdown_chart(dca_df, "DCA")
+            st.altair_chart(dca_drawdown_chart, use_container_width=True)
+    
+    def _render_investment_flow_chart(self):
+        """渲染投資流分析圖表"""
+        st.markdown("**投資流分析**")
+        
+        if not self.calculation_results:
+            return
+        
+        va_df = self.calculation_results["va_rebalance_df"]
+        
+        # VA策略投資流分析
+        st.markdown("**VA策略投資流向**")
+        flow_chart = create_investment_flow_chart(va_df)
+        st.altair_chart(flow_chart, use_container_width=True)
+        
+        # 添加資產配置圓餅圖
+        st.markdown("**資產配置比例**")
+        # 假設從session_state獲取配置比例
+        stock_ratio = st.session_state.get('stock_ratio', 0.6)
+        bond_ratio = st.session_state.get('bond_ratio', 0.4)
+        
+        pie_chart = create_allocation_pie_chart(stock_ratio, bond_ratio)
+        st.altair_chart(pie_chart, use_container_width=True)
     
     def render_data_tables_and_download(self):
         """渲染數據表格與下載 - 3.3.4節實作"""
@@ -1253,45 +1263,15 @@ class ResultsDisplayManager:
             st.error("計算數據不完整")
             return
         
-        # 創建簡化的時間序列圖
-        fig = go.Figure()
-        
-        # VA線條
-        fig.add_trace(go.Scatter(
-            x=va_df.index,
-            y=va_df['Cum_Value'],
-            mode='lines',
-            name='🎯 定期定值 (VA)',
-            line=dict(color='#3b82f6', width=3)
-        ))
-        
-        # DCA線條
-        fig.add_trace(go.Scatter(
-            x=dca_df.index,
-            y=dca_df['Cum_Value'],
-            mode='lines',
-            name='💰 定期定額 (DCA)',
-            line=dict(color='#10b981', width=3)
-        ))
-        
-        # 移動端優化設定
-        fig.update_layout(
-            height=300,  # 較小高度
-            margin=dict(l=20, r=20, t=40, b=20),
-            font=dict(size=12),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            ),
-            xaxis_title="投資期數",
-            yaxis_title="投資價值 ($)",
-            hovermode='x unified'
+        # 使用第2章第2.3節的Altair圖表系統 - 移動端優化
+        chart = create_strategy_comparison_chart(
+            va_rebalance_df=va_df,
+            va_nosell_df=None,
+            dca_df=dca_df,
+            chart_type="cumulative_value"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.altair_chart(chart, use_container_width=True)
     
     def _render_mobile_comparison_table(self):
         """渲染移動端比較表格 - 簡化版"""
