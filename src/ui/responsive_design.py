@@ -502,6 +502,11 @@ class ResponsiveDesignManager:
         if hasattr(self, '_parameter_manager'):
             parameters = self._parameter_manager.get_all_parameters()
             
+            # 檢查是否有計算觸發
+            if st.session_state.get('trigger_calculation', False):
+                # 確保結果顯示管理器知道計算觸發
+                st.session_state.trigger_calculation = True
+            
             # 渲染完整結果區域
             self._results_display_manager.render_complete_results_display(parameters)
         else:
@@ -570,7 +575,7 @@ class ResponsiveDesignManager:
                 "monthly_investment": 3000
             },
             "aggressive": {
-                "initial_investment": 100000,
+                "initial_investment": 10000,
                 "investment_frequency": "monthly",
                 "investment_periods": 120,
                 "monthly_investment": 5000

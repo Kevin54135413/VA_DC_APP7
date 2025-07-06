@@ -383,11 +383,8 @@ class LayoutManager:
         if not hasattr(self, '_parameter_manager'):
             self._parameter_manager = ParameterManager()
         
-        # 渲染基本參數
+        # 渲染參數設定（已合併基本和進階參數）
         self._parameter_manager.render_basic_parameters()
-        
-        # 渲染進階設定
-        self._parameter_manager.render_advanced_settings()
         
         # 渲染參數摘要
         self._parameter_manager.render_parameter_summary()

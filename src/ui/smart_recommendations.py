@@ -211,7 +211,7 @@ class SmartRecommendationsManager:
     def _analyze_user_profile(self, parameters: Dict[str, Any], calculation_results: Dict[str, Any]):
         """分析用戶檔案以生成個人化建議"""
         self.user_profile = {
-            "investment_amount": parameters.get("initial_investment", 100000),
+            "investment_amount": parameters.get("initial_investment", 10000),
             "time_horizon": parameters.get("investment_years", 10),
             "risk_tolerance_derived": self._derive_risk_tolerance(parameters),
             "strategy_performance_comparison": self._compare_strategy_performance(calculation_results)
@@ -222,7 +222,7 @@ class SmartRecommendationsManager:
     
     def _derive_risk_tolerance(self, parameters: Dict[str, Any]) -> str:
         """從參數推導風險承受度"""
-        investment_amount = parameters.get("initial_investment", 100000)
+        investment_amount = parameters.get("initial_investment", 10000)
         time_horizon = parameters.get("investment_years", 10)
         stock_ratio = parameters.get("stock_ratio", 80)
         

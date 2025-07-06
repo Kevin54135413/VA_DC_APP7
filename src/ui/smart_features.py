@@ -29,7 +29,7 @@ from ..models.calculation_formulas import (
     convert_annual_to_period_parameters,
     calculate_va_target_value, execute_va_strategy,
     calculate_dca_investment, calculate_dca_cumulative_investment, execute_dca_strategy,
-    calculate_annualized_return, calculate_volatility, calculate_sharpe_ratio
+    calculate_annualized_return, calculate_volatility_and_sharpe
 )
 from ..models.strategy_engine import calculate_va_strategy, calculate_dca_strategy
 from ..models.table_calculator import calculate_summary_metrics
@@ -362,14 +362,14 @@ def calculate_va_strategy_with_chapter2(parameters: Dict[str, Any],
         pd.DataFrame: VA策略結果
     """
     return calculate_va_strategy(
-        C0=parameters.get("initial_investment", 100000),
+        C0=parameters.get("initial_investment", 10000),
         annual_investment=parameters.get("annual_investment", 120000),
         annual_growth_rate=parameters.get("annual_growth_rate", 8.0),
         annual_inflation_rate=parameters.get("annual_inflation_rate", 3.0),
         investment_years=parameters.get("investment_years", 10),
         frequency=parameters.get("frequency", "Quarterly"),
         stock_ratio=parameters.get("stock_ratio", 80),
-        strategy_type="VA_Rebalance",
+        strategy_type=parameters.get("strategy_type", "Rebalance"),
         market_data=market_data
     )
 
@@ -386,7 +386,7 @@ def calculate_dca_strategy_with_chapter2(parameters: Dict[str, Any],
         pd.DataFrame: DCA策略結果
     """
     return calculate_dca_strategy(
-        C0=parameters.get("initial_investment", 100000),
+        C0=parameters.get("initial_investment", 10000),
         annual_investment=parameters.get("annual_investment", 120000),
         annual_growth_rate=parameters.get("annual_growth_rate", 8.0),
         annual_inflation_rate=parameters.get("annual_inflation_rate", 3.0),
@@ -416,7 +416,7 @@ def generate_comparison_analysis(va_results: pd.DataFrame, dca_results: pd.DataF
     summary_df = calculate_summary_metrics(
         va_rebalance_df=va_results,
         dca_df=dca_results,
-        initial_investment=parameters.get("initial_investment", 100000),
+        initial_investment=parameters.get("initial_investment", 10000),
         periods_per_year=periods_per_year,
         risk_free_rate=2.0
     )
@@ -563,7 +563,7 @@ class SmartRecommendationEngine:
     
     def _analyze_user_profile(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """分析用戶檔案"""
-        investment_amount = parameters.get("initial_investment", 100000)
+        investment_amount = parameters.get("initial_investment", 10000)
         time_horizon = parameters.get("investment_years", 10)
         stock_ratio = parameters.get("stock_ratio", 80)
         
