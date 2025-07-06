@@ -237,9 +237,49 @@ def apply_modern_styling():
         .stMarkdown h3 { font-size: 1.75rem !important; }
     }
     
-    /* 改進的互動元件 */
+    /* 改進的互動元件 - 修正滑桿顏色可讀性 */
     .stSlider > div > div > div > div {
         background: #3b82f6 !important;
+    }
+    
+    /* 修正滑桿數值顯示顏色 - 多層級選擇器 */
+    .stSlider > div > div > div > div > div > div,
+    .stSlider [data-baseweb="slider"] > div > div,
+    .stSlider [role="slider"] + div,
+    .stSlider .st-emotion-cache-1wmy9hl,
+    .stSlider .st-emotion-cache-1wmy9hl > div {
+        color: #ffffff !important;
+        font-weight: bold !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+        background: rgba(0,0,0,0.7) !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+        min-width: 50px !important;
+        text-align: center !important;
+    }
+    
+    /* 針對滑桿上方的數值標籤 */
+    .stSlider [data-testid="stSlider"] > div > div > div > div > div:last-child,
+    .stSlider [data-testid="stSlider"] span {
+        color: #1f2937 !important;
+        font-weight: 600 !important;
+        background: #ffffff !important;
+        border: 1px solid #d1d5db !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* 滑桿軌道顏色 */
+    .stSlider > div > div > div {
+        background: #e5e7eb !important;
+    }
+    
+    /* 滑桿按鈕顏色 */
+    .stSlider > div > div > div > div > div[role="slider"] {
+        background: #ffffff !important;
+        border: 2px solid #3b82f6 !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
     }
     
     .stButton > button {
