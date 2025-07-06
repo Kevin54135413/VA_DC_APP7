@@ -224,4 +224,4 @@ print(f"數據完整度: {quality_report['statistics']['data_completeness']}")
 
 ## 授權聲明
 
-本專案依據需求規格文件開發，僅供學習和研究使用。 
+本專案依據需求規格文件開發，僅供學習和研究使用。 # VA_DC_APP7
