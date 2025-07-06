@@ -99,7 +99,7 @@ class FREDDataFetcher:
         
         try:
             # 使用容錯機制執行API請求
-            response_data = self.fault_tolerance.execute_with_retry(
+            response_data = self.fault_tolerance.fetch_with_retry(
                 self._make_api_request,
                 self.base_url,
                 params

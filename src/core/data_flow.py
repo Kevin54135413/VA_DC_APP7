@@ -360,8 +360,8 @@ class SimpleDataFlowPipeline:
         try:
             logger.info("開始策略計算")
             
-            # 轉換市場數據格式
-            market_df = self._convert_market_data_to_dataframe(market_data)
+            # 轉換市場數據格式（支援起始日期參數）
+            market_df = self._convert_market_data_to_dataframe(market_data, parameters)
             
             if self.config.streamlit_progress_enabled:
                 with st.spinner("📊 正在計算投資策略..."):
@@ -446,12 +446,13 @@ class SimpleDataFlowPipeline:
             logger.error(f"策略計算失敗: {str(e)}")
             return None
     
-    def _convert_market_data_to_dataframe(self, market_data: Dict[str, Any]) -> pd.DataFrame:
+    def _convert_market_data_to_dataframe(self, market_data: Dict[str, Any], parameters: Dict[str, Any] = None) -> pd.DataFrame:
         """
-        轉換市場數據為DataFrame格式
+        轉換市場數據為DataFrame格式（支援起始日期參數）
         
         Args:
             market_data: 原始市場數據
+            parameters: 用戶參數（包含起始日期）
         
         Returns:
             pd.DataFrame: 轉換後的市場數據
@@ -460,8 +461,34 @@ class SimpleDataFlowPipeline:
             stock_data = market_data['stock_data']
             bond_data = market_data['bond_data']
             
-            # 創建基本的市場數據DataFrame
-            dates = pd.to_datetime(stock_data[0]['date'] if isinstance(stock_data, list) else stock_data['dates'])
+            # 生成時間軸（如果提供了參數）
+            if parameters:
+                from src.utils.trading_days import generate_simulation_timeline
+                from datetime import datetime as dt
+                
+                # 獲取起始日期參數
+                user_start_date = parameters.get("investment_start_date")
+                if user_start_date:
+                    # 將date對象轉換為datetime對象
+                    if hasattr(user_start_date, 'date'):
+                        start_datetime = dt.combine(user_start_date, dt.min.time())
+                    else:
+                        start_datetime = dt.combine(user_start_date, dt.min.time())
+                else:
+                    start_datetime = None
+                
+                # 生成時間軸
+                timeline = generate_simulation_timeline(
+                    investment_years=parameters["investment_years"],
+                    frequency=parameters["investment_frequency"],
+                    user_start_date=start_datetime
+                )
+                
+                # 使用時間軸中的日期
+                dates = [period_info['adjusted_start_date'] for period_info in timeline]
+            else:
+                # 創建基本的市場數據DataFrame
+                dates = pd.to_datetime(stock_data[0]['date'] if isinstance(stock_data, list) else stock_data['dates'])
             
             if isinstance(stock_data, list):
                 # 列表格式

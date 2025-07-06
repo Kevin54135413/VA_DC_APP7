@@ -159,30 +159,28 @@ def calculate_period_start_date(base_start_date: datetime, frequency: str, perio
     Returns:
         datetime: 該期的起始日期
     """
-    if frequency == 'monthly':
+    # 標準化頻率字符串
+    frequency_lower = frequency.lower()
+    
+    if frequency_lower in ['monthly', 'month']:
         # 每月1日開始
         start_date = base_start_date + relativedelta(months=period_number - 1)
         
-    elif frequency == 'quarterly':
-        # 每季第一日：1/1, 4/1, 7/1, 10/1
-        quarter_start_months = [1, 4, 7, 10]
-        month_index = (period_number - 1) % 4
-        year_offset = (period_number - 1) // 4
-        start_date = datetime(base_start_date.year + year_offset, 
-                            quarter_start_months[month_index], 1)
+    elif frequency_lower in ['quarterly', 'quarter']:
+        # 基於用戶指定的起始日期計算季度
+        start_date = base_start_date + relativedelta(months=(period_number - 1) * 3)
         
-    elif frequency == 'semi-annually':
-        # 每半年第一日：1/1, 7/1
-        if period_number % 2 == 1:  # 奇數期：1月1日
-            target_month = 1
-        else:  # 偶數期：7月1日
-            target_month = 7
-        year_offset = (period_number - 1) // 2
-        start_date = datetime(base_start_date.year + year_offset, target_month, 1)
+    elif frequency_lower in ['semi-annually', 'semi_annually', 'semiannually']:
+        # 基於用戶指定的起始日期計算半年度
+        start_date = base_start_date + relativedelta(months=(period_number - 1) * 6)
         
-    elif frequency == 'annually':
-        # 每年1月1日開始
-        start_date = datetime(base_start_date.year + period_number - 1, 1, 1)
+    elif frequency_lower in ['annually', 'annual', 'yearly', 'year']:
+        # 基於用戶指定的起始日期計算年度
+        start_date = base_start_date + relativedelta(years=(period_number - 1))
+    
+    else:
+        # 預設為年度頻率
+        start_date = base_start_date + relativedelta(years=(period_number - 1))
     
     return start_date
 
@@ -199,51 +197,56 @@ def calculate_period_end_date(base_start_date: datetime, frequency: str, period_
     Returns:
         datetime: 該期的結束日期
     """
-    if frequency == 'monthly':
+    # 標準化頻率字符串
+    frequency_lower = frequency.lower()
+    
+    if frequency_lower in ['monthly', 'month']:
         # 每月底：1月31日、2月28/29日、3月31日...
         start_of_month = base_start_date + relativedelta(months=period_number - 1)
         end_date = start_of_month + relativedelta(months=1) - timedelta(days=1)
         
-    elif frequency == 'quarterly':
-        # 每季底：3月31日、6月30日、9月30日、12月31日
-        quarter_end_months = [3, 6, 9, 12]
-        month_index = (period_number - 1) % 4
-        year_offset = (period_number - 1) // 4
-        target_month = quarter_end_months[month_index]
-        end_date = datetime(base_start_date.year + year_offset, target_month, 1) + \
-                   relativedelta(months=1) - timedelta(days=1)
+    elif frequency_lower in ['quarterly', 'quarter']:
+        # 基於用戶指定的起始日期計算季度結束日期
+        period_start = base_start_date + relativedelta(months=(period_number - 1) * 3)
+        end_date = period_start + relativedelta(months=3) - timedelta(days=1)
         
-    elif frequency == 'semi-annually':
-        # 每半年底：6月30日、12月31日
-        if period_number % 2 == 1:  # 奇數期：6月30日
-            target_month = 6
-        else:  # 偶數期：12月31日
-            target_month = 12
-        year_offset = (period_number - 1) // 2
-        end_date = datetime(base_start_date.year + year_offset, target_month, 1) + \
-                   relativedelta(months=1) - timedelta(days=1)
+    elif frequency_lower in ['semi-annually', 'semi_annually', 'semiannually']:
+        # 基於用戶指定的起始日期計算半年度結束日期
+        period_start = base_start_date + relativedelta(months=(period_number - 1) * 6)
+        end_date = period_start + relativedelta(months=6) - timedelta(days=1)
         
-    elif frequency == 'annually':
-        # 每年底：12月31日
-        end_date = datetime(base_start_date.year + period_number - 1, 12, 31)
+    elif frequency_lower in ['annually', 'annual', 'yearly', 'year']:
+        # 基於用戶指定的起始日期計算年度結束日期
+        period_start = base_start_date + relativedelta(years=(period_number - 1))
+        end_date = period_start + relativedelta(years=1) - timedelta(days=1)
+    
+    else:
+        # 預設為年度頻率
+        period_start = base_start_date + relativedelta(years=(period_number - 1))
+        end_date = period_start + relativedelta(years=1) - timedelta(days=1)
     
     return end_date
 
 
-def generate_simulation_timeline(investment_years: int, frequency: str) -> List[Dict]:
+def generate_simulation_timeline(investment_years: int, frequency: str, user_start_date=None) -> List[Dict]:
     """
     生成完整模擬數據時間軸，包含交易日調整
     
     Args:
         investment_years: 投資年數
         frequency: 投資頻率
+        user_start_date: 使用者指定的起始日期，若為None則使用預設值
         
     Returns:
         list: 包含每期完整時間資訊的列表
     """
-    # 設定起始日期為次年1月1日
-    current_year = datetime.now().year
-    base_start_date = datetime(current_year + 1, 1, 1)
+    # 設定起始日期：使用者輸入或預設為次年1月1日
+    if user_start_date is None:
+        current_year = datetime.now().year
+        base_start_date = datetime(current_year + 1, 1, 1)
+    else:
+        # 確保使用者輸入的日期為交易日
+        base_start_date = adjust_for_trading_days(user_start_date, 'next')
     
     # 計算總期數
     periods_per_year = {

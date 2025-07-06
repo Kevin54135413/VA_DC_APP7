@@ -109,7 +109,8 @@ class DataManager:
     def get_period_data(self, 
                        investment_years: int,
                        frequency: str,
-                       data_source: str = 'auto') -> List[AggregatedPeriodData]:
+                       data_source: str = 'auto',
+                       user_start_date: Optional[datetime] = None) -> List[AggregatedPeriodData]:
         """
         獲取期間聚合數據
         
@@ -117,21 +118,27 @@ class DataManager:
             investment_years: 投資年數
             frequency: 投資頻率
             data_source: 數據源選擇
+            user_start_date: 用戶指定的起始日期
             
         Returns:
             List[AggregatedPeriodData]: 期間聚合數據列表
         """
-        # 計算日期範圍
-        if data_source == 'simulation':
-            # 模擬數據使用未來日期
-            current_year = datetime.now().year
-            start_date = f"{current_year + 1}-01-01"
-            end_date = f"{current_year + 1 + investment_years}-12-31"
+        # 計算日期範圍 - 使用用戶指定的起始日期
+        if user_start_date:
+            start_date = user_start_date.strftime('%Y-%m-%d')
+            from datetime import timedelta
+            end_date = (user_start_date + timedelta(days=investment_years * 365)).strftime('%Y-%m-%d')
         else:
-            # 歷史數據使用過去日期
-            current_date = datetime.now()
-            start_date = (current_date.replace(year=current_date.year - investment_years)).strftime('%Y-%m-%d')
-            end_date = current_date.strftime('%Y-%m-%d')
+            # 備用邏輯：根據數據源選擇預設日期
+            if data_source == 'simulation':
+                # 模擬數據使用未來日期
+                current_year = datetime.now().year
+                start_date = f"{current_year + 1}-01-01"
+                end_date = f"{current_year + 1 + investment_years}-12-31"
+            else:
+                # 歷史數據使用預設起始日期（1994年）
+                start_date = "1994-01-01"
+                end_date = f"{1994 + investment_years}-12-31"
         
         # 獲取原始數據
         market_data = self.get_market_data(start_date, end_date, data_source)
