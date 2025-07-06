@@ -103,24 +103,20 @@ def calculate_va_strategy(C0: float,
         for period in range(int(total_periods)):
             period_data = {}
             
-            # 基本期間信息
-            period_data["Period"] = period
+            # 基本期間信息 - 修正：Period應該從1開始，符合需求文件規格
+            period_data["Period"] = period + 1
             if period < len(market_data):
                 market_row = market_data.iloc[period]
-                period_data["Date_Origin"] = market_row.get("Date_Origin", f"2024-{period//4+1:02d}-01")
-                period_data["Date_End"] = market_row.get("Date_End", f"2024-{period//4+1:02d}-28")
-                period_data["SPY_Price_Origin"] = market_row.get("SPY_Price_Origin", 400.0 + period * 2)
-                period_data["SPY_Price_End"] = market_row.get("SPY_Price_End", 401.0 + period * 2)
-                period_data["Bond_Yield_Origin"] = market_row.get("Bond_Yield_Origin", 3.0)
-                period_data["Bond_Yield_End"] = market_row.get("Bond_Yield_End", 3.1)
+                # 直接使用市場數據，不提供模擬數據作為預設值
+                period_data["Date_Origin"] = market_row["Date_Origin"]
+                period_data["Date_End"] = market_row["Date_End"] 
+                period_data["SPY_Price_Origin"] = market_row["SPY_Price_Origin"]
+                period_data["SPY_Price_End"] = market_row["SPY_Price_End"]
+                period_data["Bond_Yield_Origin"] = market_row["Bond_Yield_Origin"]
+                period_data["Bond_Yield_End"] = market_row["Bond_Yield_End"]
             else:
-                # 使用預設值
-                period_data["Date_Origin"] = f"2024-{period//4+1:02d}-01"
-                period_data["Date_End"] = f"2024-{period//4+1:02d}-28"
-                period_data["SPY_Price_Origin"] = 400.0 + period * 2
-                period_data["SPY_Price_End"] = 401.0 + period * 2
-                period_data["Bond_Yield_Origin"] = 3.0
-                period_data["Bond_Yield_End"] = 3.1
+                # 如果market_data不足，拋出錯誤而不是使用模擬數據
+                raise ValueError(f"市場數據不足：需要{int(total_periods)}期數據，但只有{len(market_data)}期")
             
             # 計算債券價格
             period_data["Bond_Price_Origin"] = calculate_bond_price(period_data["Bond_Yield_Origin"])
@@ -133,27 +129,49 @@ def calculate_va_strategy(C0: float,
             # 期初投入（僅第一期）
             period_data["Initial_Investment"] = C0 if period == 0 else 0
             
-            # 計算VA目標價值
+            # 計算VA目標價值 - 使用1-based期數
             va_target = calculate_va_target_value(C0, C_period, r_period, g_period, period + 1)
             period_data["VA_Target"] = va_target
             
-            # 計算當期調整前資產價值
-            current_asset_value = (cum_stock_units * period_data["SPY_Price_End"] + 
-                                 cum_bond_units * period_data["Bond_Price_End"])
-            period_data["Current_Asset_Value"] = current_asset_value
-            
             # 執行VA策略
             if period == 0:
-                # 第一期：投入C0
+                # 第一期：期初投入C0，期末計算investment_gap
+                # 1. 期初投入C0
                 trade_result = execute_dca_strategy(
                     C0, stock_ratio_decimal, bond_ratio_decimal,
                     period_data["SPY_Price_Origin"], period_data["Bond_Price_Origin"]
                 )
-                period_data["Invested"] = C0
-                period_data["stock_trade_units"] = trade_result["stock_trade_units"]
-                period_data["bond_trade_units"] = trade_result["bond_trade_units"]
+                # 更新累積單位數（期初投入的結果）
+                cum_stock_units += trade_result["stock_trade_units"]
+                cum_bond_units += trade_result["bond_trade_units"]
                 cum_inv += C0
+                
+                # 2. 計算當期調整前資產價值（期初投入C0後，期末調整前的資產價值）
+                current_asset_value = (cum_stock_units * period_data["SPY_Price_End"] + 
+                                     cum_bond_units * period_data["Bond_Price_End"])
+                period_data["Current_Asset_Value"] = current_asset_value
+                
+                # 3. 期末計算investment_gap並執行VA策略調整
+                va_result = execute_va_strategy(
+                    va_target, current_asset_value, stock_ratio_decimal, bond_ratio_decimal,
+                    period_data["SPY_Price_End"], period_data["Bond_Price_End"], strategy_type
+                )
+                
+                # 4. Invested欄位顯示期末的investment_gap，符合需求文件
+                period_data["Invested"] = va_result["actual_investment"]
+                period_data["stock_trade_units"] = trade_result["stock_trade_units"] + va_result["stock_trade_units"]
+                period_data["bond_trade_units"] = trade_result["bond_trade_units"] + va_result["bond_trade_units"]
+                cum_inv += va_result["actual_investment"]
+                
+                # 更新累積單位數（包含期末調整）
+                cum_stock_units += va_result["stock_trade_units"]
+                cum_bond_units += va_result["bond_trade_units"]
             else:
+                # 計算當期調整前資產價值
+                current_asset_value = (cum_stock_units * period_data["SPY_Price_End"] + 
+                                     cum_bond_units * period_data["Bond_Price_End"])
+                period_data["Current_Asset_Value"] = current_asset_value
+                
                 # 後續期數：根據VA目標調整
                 va_result = execute_va_strategy(
                     va_target, current_asset_value, stock_ratio_decimal, bond_ratio_decimal,
@@ -163,10 +181,10 @@ def calculate_va_strategy(C0: float,
                 period_data["stock_trade_units"] = va_result["stock_trade_units"]
                 period_data["bond_trade_units"] = va_result["bond_trade_units"]
                 cum_inv += va_result["actual_investment"]
-            
-            # 更新累積單位數
-            cum_stock_units += period_data["stock_trade_units"]
-            cum_bond_units += period_data["bond_trade_units"]
+                
+                # 更新累積單位數
+                cum_stock_units += period_data["stock_trade_units"]
+                cum_bond_units += period_data["bond_trade_units"]
             
             period_data["Cum_stock_units"] = cum_stock_units
             period_data["Cum_bond_units"] = cum_bond_units
@@ -249,24 +267,20 @@ def calculate_dca_strategy(C0: float,
         for period in range(int(total_periods)):
             period_data = {}
             
-            # 基本期間信息
-            period_data["Period"] = period
+            # 基本期間信息 - 修正：Period應該從1開始，符合需求文件規格
+            period_data["Period"] = period + 1
             if period < len(market_data):
                 market_row = market_data.iloc[period]
-                period_data["Date_Origin"] = market_row.get("Date_Origin", f"2024-{period//4+1:02d}-01")
-                period_data["Date_End"] = market_row.get("Date_End", f"2024-{period//4+1:02d}-28")
-                period_data["SPY_Price_Origin"] = market_row.get("SPY_Price_Origin", 400.0 + period * 2)
-                period_data["SPY_Price_End"] = market_row.get("SPY_Price_End", 401.0 + period * 2)
-                period_data["Bond_Yield_Origin"] = market_row.get("Bond_Yield_Origin", 3.0)
-                period_data["Bond_Yield_End"] = market_row.get("Bond_Yield_End", 3.1)
+                # 直接使用市場數據，不提供模擬數據作為預設值
+                period_data["Date_Origin"] = market_row["Date_Origin"]
+                period_data["Date_End"] = market_row["Date_End"] 
+                period_data["SPY_Price_Origin"] = market_row["SPY_Price_Origin"]
+                period_data["SPY_Price_End"] = market_row["SPY_Price_End"]
+                period_data["Bond_Yield_Origin"] = market_row["Bond_Yield_Origin"]
+                period_data["Bond_Yield_End"] = market_row["Bond_Yield_End"]
             else:
-                # 使用預設值
-                period_data["Date_Origin"] = f"2024-{period//4+1:02d}-01"
-                period_data["Date_End"] = f"2024-{period//4+1:02d}-28"
-                period_data["SPY_Price_Origin"] = 400.0 + period * 2
-                period_data["SPY_Price_End"] = 401.0 + period * 2
-                period_data["Bond_Yield_Origin"] = 3.0
-                period_data["Bond_Yield_End"] = 3.1
+                # 如果market_data不足，拋出錯誤而不是使用模擬數據
+                raise ValueError(f"市場數據不足：需要{int(total_periods)}期數據，但只有{len(market_data)}期")
             
             # 計算債券價格
             period_data["Bond_Price_Origin"] = calculate_bond_price(period_data["Bond_Yield_Origin"])
@@ -276,32 +290,34 @@ def calculate_dca_strategy(C0: float,
             period_data["Prev_Stock_Units"] = cum_stock_units
             period_data["Prev_Bond_Units"] = cum_bond_units
             
-            # 計算固定投入金額
+            # 計算固定投入金額 - 修正：Fixed_Investment欄位只顯示通膨調整後的定期投入，不包含C0
             if period == 0:
-                # 第一期：C0 + 第一期C_period
+                # 第一期：C0單獨顯示在Initial_Investment，Fixed_Investment只顯示調整後的C_period
                 period_investment = calculate_dca_investment(C_period, g_period, 1)
-                fixed_investment = C0 + period_investment
+                fixed_investment = period_investment  # 修正：不包含C0
+                actual_total_investment = C0 + period_investment  # 實際總投入用於策略執行
                 period_data["Initial_Investment"] = C0
             else:
-                # 後續期數：調整後的C_period
+                # 後續期數：調整後的C_period - 使用1-based期數
                 fixed_investment = calculate_dca_investment(C_period, g_period, period + 1)
+                actual_total_investment = fixed_investment  # 後續期數沒有C0
                 period_data["Initial_Investment"] = 0
             
             period_data["Fixed_Investment"] = fixed_investment
             
-            # 執行DCA策略
+            # 執行DCA策略 - 使用實際總投入金額
             dca_result = execute_dca_strategy(
-                fixed_investment, stock_ratio_decimal, bond_ratio_decimal,
+                actual_total_investment, stock_ratio_decimal, bond_ratio_decimal,
                 period_data["SPY_Price_Origin"], period_data["Bond_Price_Origin"]
             )
             
             period_data["stock_trade_units"] = dca_result["stock_trade_units"]
             period_data["bond_trade_units"] = dca_result["bond_trade_units"]
             
-            # 更新累積單位數和投入
+            # 更新累積單位數和投入 - 使用實際總投入金額
             cum_stock_units += period_data["stock_trade_units"]
             cum_bond_units += period_data["bond_trade_units"]
-            cum_inv += fixed_investment
+            cum_inv += actual_total_investment
             
             period_data["Cum_stock_units"] = cum_stock_units
             period_data["Cum_bond_units"] = cum_bond_units
