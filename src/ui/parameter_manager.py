@@ -987,8 +987,27 @@ class ParameterManager:
                     missing_keys.append("TIINGO_API_KEY")
                 if not fred_key:
                     missing_keys.append("FRED_API_KEY")
-                st.warning(f"⚠️ 缺少API金鑰: {', '.join(missing_keys)}")
-                st.info("系統將在需要時自動切換為模擬數據")
+                
+                # 更友好的API金鑰缺失提示
+                with st.expander("⚠️ API金鑰設定指引", expanded=True):
+                    st.markdown(f"**缺少API金鑰**: {', '.join(missing_keys)}")
+                    st.markdown("**🎯 不用擔心！系統會自動處理：**")
+                    st.markdown("• 🔄 自動切換到高品質模擬數據")
+                    st.markdown("• 📊 所有功能正常運作")
+                    st.markdown("• 🎲 基於真實歷史統計的模擬")
+                    
+                    st.markdown("**🔑 如需使用真實數據，請設定API金鑰：**")
+                    st.markdown("1. **Tiingo API** (股票數據) - [免費註冊](https://api.tiingo.com/)")
+                    st.markdown("2. **FRED API** (債券數據) - [免費註冊](https://fred.stlouisfed.org/docs/api/api_key.html)")
+                    
+                    st.markdown("**📋 Streamlit Cloud設定步驟：**")
+                    st.markdown("1. 點擊右下角 'Manage app'")
+                    st.markdown("2. 進入 'Secrets' 設定")
+                    st.markdown("3. 添加：")
+                    st.code('''TIINGO_API_KEY = "your_tiingo_key_here"
+FRED_API_KEY = "your_fred_key_here"''', language="toml")
+                    
+                    st.info("💡 **提示**: 即使沒有API金鑰，系統也能完美運行所有功能！")
         
         elif selected_option['value'] == 'simulation':
             st.success("✅ 已選擇模擬數據")
