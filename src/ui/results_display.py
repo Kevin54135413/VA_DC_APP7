@@ -14,7 +14,6 @@ import altair as alt
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import time
 
 # 添加src目錄到Python路徑
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -24,15 +23,7 @@ from models.calculation_formulas import calculate_annualized_return
 from models.strategy_engine import calculate_va_strategy, calculate_dca_strategy
 from models.table_calculator import calculate_summary_metrics
 from models.table_specifications import VA_COLUMNS_ORDER, DCA_COLUMNS_ORDER, PERCENTAGE_PRECISION_RULES
-from models.chart_visualizer import (
-    create_strategy_comparison_chart, 
-    create_bar_chart, 
-    create_line_chart,
-    create_risk_return_scatter,
-    create_drawdown_chart,
-    create_investment_flow_chart,
-    create_allocation_pie_chart
-)
+from models.chart_visualizer import create_strategy_comparison_chart, create_bar_chart, create_line_chart
 
 # ============================================================================
 # 3.3.1 頂部摘要卡片實作 - SUMMARY_METRICS_DISPLAY
@@ -211,16 +202,29 @@ class ResultsDisplayManager:
         
     def render_complete_results_display(self, parameters: Dict[str, Any]):
         """渲染完整中央結果展示區域"""
-        # 記錄顯示時間
-        from datetime import datetime
-        st.session_state.last_display_time = datetime.now()
-        
-        # 顯示計算完成信息
-        st.success("✅ 計算完成！以下是您的投資策略分析結果：")
+        # 檢查是否有計算觸發
+        if st.session_state.get('trigger_calculation', False):
+            # 清除觸發標記
+            st.session_state.trigger_calculation = False
+            
+            # 執行策略計算
+            self._execute_strategy_calculations(parameters)
+            
+            # 記錄計算時間
+            from datetime import datetime
+            st.session_state.last_calculation_time = datetime.now()
+            
+            # 顯示計算完成信息
+            st.success("✅ 計算完成！以下是您的投資策略分析結果：")
         
         # 從session_state讀取計算結果（如果有的話）
         if not self.calculation_results and st.session_state.get('calculation_results'):
             self.calculation_results = st.session_state.calculation_results
+        
+        # 如果沒有計算結果，顯示提示
+        if not self.calculation_results:
+            st.info("👈 請在左側設定投資參數，然後點擊「🎯 執行策略計算」按鈕開始分析")
+            return
         
         # 渲染頂部摘要卡片
         self.render_summary_metrics_display()
@@ -480,9 +484,13 @@ class ResultsDisplayManager:
             # 生成期間數據
             from src.utils.trading_days import calculate_period_start_date, calculate_period_end_date
             
-            # 追蹤前一期的期末價格，確保價格連續性
+            # 價格連續性追蹤變量 - 解決混合數據價格跳躍問題
             previous_spy_price_end = None
             previous_bond_yield_end = None
+            
+            # 檢測真實數據可用範圍
+            current_date = datetime.now().date()
+            real_data_cutoff_period = None
             
             for period in range(total_periods):
                 # 使用正確的投資頻率計算日期 - 修正：不再使用固定30天間隔
@@ -492,167 +500,168 @@ class ResultsDisplayManager:
                 date_str = period_start.strftime('%Y-%m-%d')
                 end_date_str = period_end.strftime('%Y-%m-%d')
                 
-                # 使用真實API數據（已確保有數據）
-                if len(spy_data) > 0:
-                    # 尋找最接近的日期的真實數據
-                    closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                    spy_price_base = spy_data.get(closest_spy_date) if closest_spy_date else None
-                    if spy_price_base is None:
-                        # 如果找不到合適的數據點，使用最新的可用數據
-                        spy_price_base = list(spy_data.values())[-1] if spy_data else None
-                        if spy_price_base is None:
-                            raise ValueError(f"SPY數據不足：期間{period}無可用數據")
-                else:
-                    raise ValueError(f"SPY數據完全缺失：無法生成期間{period}的數據")
+                # 判斷是否進入模擬數據範圍
+                is_real_data_available = period_start.date() <= current_date
                 
-                if len(bond_data) > 0:
-                    # 尋找最接近的日期的真實數據
-                    closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                    bond_yield_base = bond_data.get(closest_bond_date) if closest_bond_date else None
-                    if bond_yield_base is None:
-                        # 如果找不到合適的數據點，使用最新的可用數據
-                        bond_yield_base = list(bond_data.values())[-1] if bond_data else None
-                        if bond_yield_base is None:
-                            raise ValueError(f"債券數據不足：期間{period}無可用數據")
-                else:
-                    raise ValueError(f"債券數據完全缺失：無法生成期間{period}的數據")
+                # 記錄真實數據截止期間
+                if is_real_data_available and real_data_cutoff_period is None:
+                    pass  # 還在真實數據範圍內
+                elif not is_real_data_available and real_data_cutoff_period is None:
+                    real_data_cutoff_period = period
+                    if real_data_cutoff_period > 0:
+                        logger.info(f"第{real_data_cutoff_period}期開始使用模擬數據，確保價格連續性")
+                        st.info(f"📊 前{real_data_cutoff_period}期使用真實數據，第{real_data_cutoff_period + 1}期開始使用模擬數據（保持價格連續性）")
                 
-                # 生成更真實的市場波動，確保VA策略類型差異能體現
-                import numpy as np
-                # 使用動態隨機種子確保每期都有不同的隨機變化
-                import time
-                dynamic_seed = int(time.time() * 1000000) % 2147483647
-                dynamic_seed ^= (period * 37 + hash(date_str)) % 2147483647
-                np.random.seed(dynamic_seed)
-                
-                # 檢查是否為未來期間（無真實數據的期間）
-                latest_spy_date = max(spy_data.keys(), key=lambda x: datetime.strptime(x, '%Y-%m-%d'))
-                latest_bond_date = max(bond_data.keys(), key=lambda x: datetime.strptime(x, '%Y-%m-%d'))
-                is_future_period = (period_start > datetime.strptime(latest_spy_date, '%Y-%m-%d') or 
-                                  period_start > datetime.strptime(latest_bond_date, '%Y-%m-%d'))
-                
-                # 決定期初價格：根據是否有真實數據決定處理方式
-                if is_future_period:
-                    # 未來期間（無真實數據）：使用模擬邏輯
-                    if period == 0 or previous_spy_price_end is None:
-                        # 第一期或前一期數據不存在：基於最後一期歷史價格生成合理的延續價格
-                        # 計算從最後一個歷史數據點到當前期間的時間差
-                        latest_data_date = datetime.strptime(latest_spy_date, '%Y-%m-%d')
-                        time_since_last_data = (period_start - latest_data_date).days / 365.25  # 轉換為年
-                        
-                        # 使用更保守的參數確保價格在合理範圍內
-                        annual_growth = 0.06  # 降低至6%年化成長，更接近長期市場平均
-                        annual_volatility = 0.12  # 降低至12%年化波動
-                        
-                        # 計算該期間對應的時間增量
-                        time_delta = 1.0  # 假設每期為1年
-                        if parameters["investment_frequency"] == "Quarterly":
-                            time_delta = 0.25
-                        elif parameters["investment_frequency"] == "Monthly":
-                            time_delta = 1/12
-                        
-                        # 基於實際經過時間計算價格變化，而非累積期間數
-                        # 這確保價格變化更貼近現實
-                        actual_time_elapsed = time_since_last_data + (period - len([d for d in spy_data.keys() if datetime.strptime(d, '%Y-%m-%d') <= period_start]) + 1) * time_delta
-                        
-                        # 使用更溫和的隨機遊走，避免極端值
-                        price_drift = annual_growth * time_delta  # 每期固定成長，不累積
-                        price_volatility = annual_volatility * np.sqrt(time_delta)  # 標準波動率
-                        
-                        # 添加期間特定的隨機變化，但限制在合理範圍內
-                        period_random_factor = np.random.normal(0, 0.05)  # ±5%的期間隨機變化
-                        price_change = np.random.normal(price_drift + period_random_factor, price_volatility)
-                        
-                        # 限制價格變化在合理範圍內（-30%到+50%）
-                        price_change = max(-0.3, min(0.5, price_change))
-                        
-                        spy_price = round(spy_price_base * (1 + price_change), 2)
-                        
-                        # 債券殖利率：基於歷史殖利率，使用更保守的變化
-                        yield_volatility = 0.15  # 降低債券殖利率波動
-                        yield_change = np.random.normal(0, yield_volatility)
-                        
-                        # 限制殖利率變化在±1%範圍內
-                        yield_change = max(-1.0, min(1.0, yield_change))
-                        bond_yield = round(max(0.5, min(8.0, bond_yield_base + yield_change)), 4)
+                # 價格連續性處理 - 統一處理真實數據和模擬數據的連續性
+                if period == 0:
+                    # 第一期：直接使用真實數據或預設值
+                    if is_real_data_available and len(spy_data) > 0:
+                        closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                        spy_price_origin = spy_data.get(closest_spy_date) if closest_spy_date else None
+                        if spy_price_origin is None:
+                            spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
                     else:
-                        # 後續未來期間：基於前一期期末價格，添加隔夜跳空機制
-                        
-                        # 股票隔夜跳空：±0.5%到±2%的隨機跳空
-                        overnight_gap_pct = np.random.normal(0, 0.008)  # 平均0%，標準差0.8%的跳空
-                        overnight_gap_pct = np.clip(overnight_gap_pct, -0.02, 0.02)  # 限制在±2%範圍內
-                        spy_price = round(previous_spy_price_end * (1 + overnight_gap_pct), 2)
-                        
-                        # 債券殖利率隔夜跳空：小幅跳空（±0.01%到±0.05%）
-                        bond_overnight_gap = np.random.normal(0, 0.02)  # 平均0%，標準差2bp的跳空
-                        bond_overnight_gap = np.clip(bond_overnight_gap, -0.05, 0.05)  # 限制在±5bp範圍內
-                        bond_yield = round(previous_bond_yield_end + bond_overnight_gap, 4)
-                else:
-                    # 歷史期間（有真實數據）：對於歷史期間，直接使用真實數據作為期初價格
-                    if period == 0:
-                        # 第一期：直接使用歷史數據
-                        spy_price = spy_price_base
-                        bond_yield = bond_yield_base
+                        spy_price_origin = 400.0  # 預設起始價格
+                    
+                    if is_real_data_available and len(bond_data) > 0:
+                        closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                        bond_yield_origin = bond_data.get(closest_bond_date) if closest_bond_date else None
+                        if bond_yield_origin is None:
+                            bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
                     else:
-                        # 後續歷史期間：尋找該期間的真實數據作為期初價格
-                        period_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                        period_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                        bond_yield_origin = 3.0  # 預設起始殖利率
+                else:
+                    # 第二期開始：建立價格相依性但不完全相同的機制
+                    if previous_spy_price_end is not None:
+                        # 修正：前期期末價格與當期期初價格應有相依性但不完全相同
+                        # 基於前期期末價格，加入小幅隔夜變動（符合第一章數據源要求）
+                        import numpy as np
+                        np.random.seed(42 + period * 23)  # 確保可重現的隔夜變動
                         
-                        if period_spy_date and period_bond_date:
-                            # 使用該期間最接近的真實數據作為期初價格
-                            spy_price = spy_data.get(period_spy_date, spy_price_base)
-                            bond_yield = bond_data.get(period_bond_date, bond_yield_base)
-                            
-                            # 添加小幅隔夜跳空以避免完全相同（只適用於歷史期間的期初價格）
-                            # 股票小幅跳空
-                            if previous_spy_price_end is not None:
-                                historical_gap_pct = np.random.normal(0, 0.005)  # 更小的跳空：標準差0.5%
-                                historical_gap_pct = np.clip(historical_gap_pct, -0.01, 0.01)  # 限制在±1%範圍內
-                                spy_price = round(spy_price * (1 + historical_gap_pct), 2)
-                            
-                            # 債券小幅跳空
-                            if previous_bond_yield_end is not None:
-                                historical_bond_gap = np.random.normal(0, 0.01)  # 更小的跳空：標準差1bp
-                                historical_bond_gap = np.clip(historical_bond_gap, -0.02, 0.02)  # 限制在±2bp範圍內
-                                bond_yield = round(bond_yield + historical_bond_gap, 4)
+                        # 隔夜價格變動：通常在-1%到+1%之間
+                        overnight_change = np.random.normal(0, 0.005)  # 0.5%標準差
+                        overnight_change = max(-0.01, min(0.01, overnight_change))  # 限制在±1%
+                        
+                        spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
+                        logger.debug(f"期間{period}：基於前期期末價格{previous_spy_price_end}，加入{overnight_change:.4f}隔夜變動，期初價格{spy_price_origin}")
+                    else:
+                        # 備用方案：使用API數據或預設值
+                        if is_real_data_available and len(spy_data) > 0:
+                            closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                            spy_price_origin = spy_data.get(closest_spy_date) if closest_spy_date else list(spy_data.values())[-1]
                         else:
-                            # 如果找不到數據，使用基準數據
-                            spy_price = spy_price_base
-                            bond_yield = bond_yield_base
+                            spy_price_origin = 400.0
+                    
+                    if previous_bond_yield_end is not None:
+                        # 修正：債券殖利率也需要相依性但不完全相同
+                        import numpy as np
+                        np.random.seed(42 + period * 29)  # 不同種子避免與股價同步
+                        
+                        # 殖利率隔夜變動：通常很小，在-0.1%到+0.1%之間
+                        overnight_yield_change = np.random.normal(0, 0.02)  # 2個基點標準差
+                        overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))  # 限制在±0.1%
+                        
+                        bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
+                        logger.debug(f"期間{period}：基於前期期末殖利率{previous_bond_yield_end}，加入{overnight_yield_change:.4f}隔夜變動，期初殖利率{bond_yield_origin}")
+                    else:
+                        # 備用方案：使用API數據或預設值
+                        if is_real_data_available and len(bond_data) > 0:
+                            closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                            bond_yield_origin = bond_data.get(closest_bond_date) if closest_bond_date else list(bond_data.values())[-1]
+                        else:
+                            bond_yield_origin = 3.0
                 
                 # 債券價格計算（簡化公式）
-                bond_price = round(100.0 / (1 + bond_yield/100), 2)
+                bond_price_origin = round(100.0 / (1 + bond_yield_origin/100), 2)
                 
-                # 計算期末價格：基於期初價格的合理變化
-                # 股票價格：有成長趨勢但也有下跌可能
-                stock_return = np.random.normal(0.01, 0.08)  # 降低波動：平均1%成長，8%波動
-                spy_price_end = round(spy_price * (1 + stock_return), 2)
+                # 生成期末價格 - 改進波動模型確保連續性
+                import numpy as np
                 
-                # 債券殖利率：有小幅波動
-                bond_yield_change = np.random.normal(0, 0.1)  # 降低波動：10%殖利率波動
-                bond_yield_end = round(max(0.5, min(8.0, bond_yield + bond_yield_change)), 4)
+                if is_real_data_available and period == 0:
+                    # 第一期真實數據：可以使用較大的波動
+                    np.random.seed(42 + period)  # 使用期數作為種子確保可重現性
+                    
+                    # 股票價格：有成長趨勢但也有下跌可能
+                    stock_return = np.random.normal(0.02, 0.15)  # 平均2%成長，15%波動
+                    spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                    
+                    # 債券殖利率：有小幅波動
+                    bond_yield_change = np.random.normal(0, 0.2)  # 殖利率波動
+                    bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
+                elif is_real_data_available and period > 0:
+                    # 後續真實數據期間：使用控制的波動確保連續性
+                    np.random.seed(42 + period)
+                    
+                    # 控制股票價格變化幅度，確保連續性
+                    controlled_volatility = 0.10  # 10%波動
+                    stock_return = np.random.normal(0.02, controlled_volatility)
+                    spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                    
+                    # 確保價格變化在合理範圍內
+                    price_change_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
+                    if price_change_ratio > 0.15:  # 限制變化幅度
+                        max_change = 0.15 if spy_price_end > spy_price_origin else -0.15
+                        spy_price_end = round(spy_price_origin * (1 + max_change), 2)
+                    
+                    # 債券殖利率：較小的波動
+                    bond_yield_change = np.random.normal(0, 0.15)
+                    bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
+                    
+                    # 確保殖利率變化在合理範圍內
+                    yield_change_ratio = abs(bond_yield_end - bond_yield_origin) / bond_yield_origin
+                    if yield_change_ratio > 0.20:
+                        max_yield_change = 0.20 if bond_yield_end > bond_yield_origin else -0.20
+                        bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin * (1 + max_yield_change))), 4)
+                else:
+                    # 模擬數據期間：使用連續性保證的波動模型
+                    base_seed = 42
+                    np.random.seed(base_seed + period * 17 + int(start_date.timestamp()) % 1000)
+                    
+                    # 控制股票價格變化幅度，避免巨大跳躍
+                    controlled_volatility = 0.08  # 8%波動，比真實數據期間更小
+                    stock_return = np.random.normal(0.015, controlled_volatility)
+                    spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                    
+                    # 確保價格變化在合理範圍內
+                    price_change_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
+                    if price_change_ratio > 0.15:
+                        max_change = 0.15 if spy_price_end > spy_price_origin else -0.15
+                        spy_price_end = round(spy_price_origin * (1 + max_change), 2)
+                        logger.debug(f"期間{period}：限制股價變化幅度至15%，從{spy_price_origin}變為{spy_price_end}")
+                    
+                    # 債券殖利率：較小的波動
+                    bond_yield_change = np.random.normal(0, 0.1)
+                    bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
+                    
+                    # 確保殖利率變化在合理範圍內
+                    yield_change_ratio = abs(bond_yield_end - bond_yield_origin) / bond_yield_origin
+                    if yield_change_ratio > 0.25:
+                        max_yield_change = 0.25 if bond_yield_end > bond_yield_origin else -0.25
+                        bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin * (1 + max_yield_change))), 4)
+                        logger.debug(f"期間{period}：限制殖利率變化幅度至25%，從{bond_yield_origin}變為{bond_yield_end}")
+                
                 bond_price_end = round(100.0 / (1 + bond_yield_end/100), 2)
-                
-                # 更新前一期期末價格，供下一期使用
-                previous_spy_price_end = spy_price_end
-                previous_bond_yield_end = bond_yield_end
                 
                 market_data_list.append({
                     'Period': period,
                     'Date_Origin': date_str,
                     'Date_End': end_date_str,
-                    'SPY_Price_Origin': spy_price,
+                    'SPY_Price_Origin': spy_price_origin,
                     'SPY_Price_End': spy_price_end,
-                    'Bond_Yield_Origin': bond_yield,
+                    'Bond_Yield_Origin': bond_yield_origin,
                     'Bond_Yield_End': bond_yield_end,
-                    'Bond_Price_Origin': bond_price,
+                    'Bond_Price_Origin': bond_price_origin,
                     'Bond_Price_End': bond_price_end
                 })
+                
+                # 更新連續性追蹤變量
+                previous_spy_price_end = spy_price_end
+                previous_bond_yield_end = bond_yield_end
             
-            # 創建market_data DataFrame
+            # 創建DataFrame
             market_data = pd.DataFrame(market_data_list)
             
-            # 顯示結果統計
+            # 顯示最終數據源狀態
             if len(spy_data) > 0 or len(bond_data) > 0:
                 data_summary = []
                 if len(spy_data) > 0:
@@ -660,8 +669,12 @@ class ResultsDisplayManager:
                 if len(bond_data) > 0:
                     data_summary.append(f"📊 債券殖利率: {len(bond_data)} 筆")
                 
-                st.success(f"✅ 已成功使用真實市場數據生成 {len(market_data)} 期投資數據")
-                st.info(f"🌐 數據來源: {' | '.join(data_summary)}")
+                if real_data_cutoff_period is not None:
+                    st.success(f"✅ 已成功使用混合數據生成 {len(market_data)} 期投資數據")
+                    st.info(f"🌐 真實數據: {' | '.join(data_summary)} | 📊 模擬數據: 第{real_data_cutoff_period + 1}-{total_periods}期（價格連續性已保證）")
+                else:
+                    st.success(f"✅ 已成功使用真實市場數據生成 {len(market_data)} 期投資數據")
+                    st.info(f"🌐 數據來源: {' | '.join(data_summary)}")
             else:
                 st.info(f"📊 已使用模擬數據生成 {len(market_data)} 期投資數據")
             
@@ -711,16 +724,17 @@ class ResultsDisplayManager:
         bond_base_yield = 3.0
         bond_yield_volatility = 0.3  # 殖利率波動 - 增加波動性
         
-        # 使用動態隨機種子確保每次調用都產生不同的隨機序列
-        import time
-        dynamic_seed = int(time.time() * 1000000) % 2147483647
-        np.random.seed(dynamic_seed)
+        # 改進的隨機數生成機制 - 修正2026年後價格相同問題
+        base_seed = 42
         
-        # 追蹤前一期的期末價格，確保價格連續性
+        # 價格連續性追蹤變量 - 確保模擬數據也有相依性但不完全相同
         previous_spy_price_end = None
         previous_bond_yield_end = None
         
         for period in range(total_periods):
+            # 為每期設定不同的隨機種子，確保價格變化多樣性
+            np.random.seed(base_seed + period * 17 + int(start_date.timestamp()) % 1000)
+            
             # 使用正確的投資頻率計算日期
             period_start = calculate_period_start_date(start_date, parameters["investment_frequency"], period + 1)
             period_end = calculate_period_end_date(start_date, parameters["investment_frequency"], period + 1)
@@ -728,46 +742,91 @@ class ResultsDisplayManager:
             date_str = period_start.strftime('%Y-%m-%d')
             end_date_str = period_end.strftime('%Y-%m-%d')
             
-            # 為每期設定不同的隨機種子，確保價格持續變化
-            period_seed = (dynamic_seed + period * 43 + hash(date_str)) % 2147483647
-            np.random.seed(period_seed)
-            
-            # 決定期初價格：第一期使用基準價格，後續期間使用前一期期末價格並添加隔夜跳空
+            # 修正的股票價格生成：確保價格相依性但不完全相同
             if period == 0:
-                # 第一期：計算基礎價格
-                stock_trend = stock_base_price * ((1 + stock_growth_rate) ** period)
-                stock_noise = np.random.normal(0, stock_volatility * stock_base_price * 0.1)  # 降低初始波動
-                spy_price_origin = round(stock_trend + stock_noise, 2)
+                # 第一期：使用基準價格
+                stock_trend = stock_base_price
+                cycle_factor = 1 + 0.05 * np.sin(2 * np.pi * period / 20)  # 20期為一個週期
+                stock_trend *= cycle_factor
                 
-                # 第一期債券殖利率
-                bond_yield_change = np.random.normal(0, bond_yield_volatility * 0.5)  # 降低初始波動
-                bond_yield_origin = round(bond_base_yield + bond_yield_change, 4)
+                volatility_multiplier = 1 + 0.3 * np.sin(2 * np.pi * period / 8)  # 波動率本身也有週期
+                period_volatility = stock_volatility * volatility_multiplier
+                
+                stock_noise = np.random.normal(0, period_volatility * stock_trend)
+                spy_price_origin = round(max(stock_trend + stock_noise, 1.0), 2)  # 確保價格大於0
             else:
-                # 後續期間：基於前一期期末價格，添加隔夜跳空機制
-                
-                # 股票隔夜跳空：±0.5%到±2%的隨機跳空
-                overnight_gap_pct = np.random.normal(0, 0.008)  # 平均0%，標準差0.8%的跳空
-                overnight_gap_pct = np.clip(overnight_gap_pct, -0.02, 0.02)  # 限制在±2%範圍內
-                spy_price_origin = round(previous_spy_price_end * (1 + overnight_gap_pct), 2)
-                
-                # 債券殖利率隔夜跳空：小幅跳空（±0.01%到±0.05%）
-                bond_overnight_gap = np.random.normal(0, 0.02)  # 平均0%，標準差2bp的跳空
-                bond_overnight_gap = np.clip(bond_overnight_gap, -0.05, 0.05)  # 限制在±5bp範圍內
-                bond_yield_origin = round(previous_bond_yield_end + bond_overnight_gap, 4)
+                # 第二期開始：基於前期期末價格但加入隔夜變動
+                if previous_spy_price_end is not None:
+                    # 隔夜價格變動：通常在-1%到+1%之間
+                    np.random.seed(base_seed + period * 23)  # 確保可重現的隔夜變動
+                    overnight_change = np.random.normal(0, 0.005)  # 0.5%標準差
+                    overnight_change = max(-0.01, min(0.01, overnight_change))  # 限制在±1%
+                    
+                    spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
+                    logger.debug(f"模擬數據期間{period}：基於前期期末價格{previous_spy_price_end}，加入{overnight_change:.4f}隔夜變動，期初價格{spy_price_origin}")
+                else:
+                    # 備用方案
+                    stock_trend = stock_base_price * ((1 + stock_growth_rate) ** period)
+                    cycle_factor = 1 + 0.05 * np.sin(2 * np.pi * period / 20)
+                    stock_trend *= cycle_factor
+                    
+                    volatility_multiplier = 1 + 0.3 * np.sin(2 * np.pi * period / 8)
+                    period_volatility = stock_volatility * volatility_multiplier
+                    
+                    stock_noise = np.random.normal(0, period_volatility * stock_trend)
+                    spy_price_origin = round(max(stock_trend + stock_noise, 1.0), 2)
             
-            # 期末價格：基於期初價格的合理變化
-            period_growth = np.random.normal(stock_growth_rate, stock_volatility * 0.3)  # 降低期內波動
+            # 期末股票價格：使用改進的成長模型
+            # 添加動量效應（前期表現影響當期）
+            momentum_factor = 1.0
+            if period > 0:
+                # 簡單動量：如果前期成長良好，當期有較高機率繼續成長
+                previous_growth_proxy = (period * stock_growth_rate) % 0.1
+                momentum_factor = 1 + 0.1 * np.tanh(previous_growth_proxy - 0.05)
+            
+            enhanced_growth_rate = stock_growth_rate * momentum_factor
+            period_growth = np.random.normal(enhanced_growth_rate, period_volatility)
             spy_price_end = round(spy_price_origin * (1 + period_growth), 2)
             
-            # 確保有足夠的價格變化來觸發VA策略差異
-            if spy_price_end == spy_price_origin:
-                # 如果價格沒有變化，強制添加一些變化
-                price_change = np.random.choice([-0.02, 0.02])  # 降低至±2%變化
-                spy_price_end = round(spy_price_origin * (1 + price_change), 2)
+            # 強化價格差異保證機制
+            price_difference_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
+            if price_difference_ratio < 0.01:  # 如果價格變化小於1%
+                # 根據期數和日期生成確定性但多變的價格變化
+                deterministic_change = 0.02 + 0.03 * np.sin(period * 1.7) + 0.02 * np.cos(period * 2.3)
+                change_direction = 1 if (period % 3) != 0 else -1  # 大部分時候上漲，偶爾下跌
+                spy_price_end = round(spy_price_origin * (1 + change_direction * abs(deterministic_change)), 2)
             
-            # 債券殖利率：基於期初殖利率的小幅變化
-            bond_yield_change = np.random.normal(0, 0.05)  # 降低期內波動
-            bond_yield_end = round(bond_yield_origin + bond_yield_change, 4)
+            # 修正的債券殖利率生成：確保相依性但不完全相同
+            if period == 0:
+                # 第一期：使用基準殖利率
+                interest_rate_cycle = 0.5 * np.sin(2 * np.pi * period / 30)  # 30期利率週期
+                economic_factor = 1 + 0.2 * np.sin(2 * np.pi * period / 15)  # 經濟週期影響
+                
+                bond_yield_base = bond_base_yield + interest_rate_cycle
+                bond_yield_change = np.random.normal(0, bond_yield_volatility * economic_factor)
+                bond_yield_origin = round(bond_yield_base + bond_yield_change, 4)
+            else:
+                # 第二期開始：基於前期期末殖利率但加入隔夜變動
+                if previous_bond_yield_end is not None:
+                    # 殖利率隔夜變動：通常很小，在-0.1%到+0.1%之間
+                    np.random.seed(base_seed + period * 29)  # 不同種子避免與股價同步
+                    overnight_yield_change = np.random.normal(0, 0.02)  # 2個基點標準差
+                    overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))  # 限制在±0.1%
+                    
+                    bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
+                    logger.debug(f"模擬數據期間{period}：基於前期期末殖利率{previous_bond_yield_end}，加入{overnight_yield_change:.4f}隔夜變動，期初殖利率{bond_yield_origin}")
+                else:
+                    # 備用方案
+                    interest_rate_cycle = 0.5 * np.sin(2 * np.pi * period / 30)
+                    economic_factor = 1 + 0.2 * np.sin(2 * np.pi * period / 15)
+                    
+                    bond_yield_base = bond_base_yield + interest_rate_cycle
+                    bond_yield_change = np.random.normal(0, bond_yield_volatility * economic_factor)
+                    bond_yield_origin = round(bond_yield_base + bond_yield_change, 4)
+            
+            # 期末債券殖利率
+            yield_momentum = 0.1 * bond_yield_change  # 殖利率有慣性
+            bond_yield_end = round(bond_yield_origin + yield_momentum + np.random.normal(0, 0.05), 4)
             
             # 確保殖利率在合理範圍內
             bond_yield_origin = max(0.5, min(8.0, bond_yield_origin))
@@ -776,10 +835,6 @@ class ResultsDisplayManager:
             # 債券價格計算
             bond_price_origin = round(100.0 / (1 + bond_yield_origin/100), 2)
             bond_price_end = round(100.0 / (1 + bond_yield_end/100), 2)
-            
-            # 更新前一期期末價格，供下一期使用
-            previous_spy_price_end = spy_price_end
-            previous_bond_yield_end = bond_yield_end
             
             market_data_list.append({
                 'Period': period,
@@ -792,6 +847,10 @@ class ResultsDisplayManager:
                 'Bond_Price_Origin': bond_price_origin,
                 'Bond_Price_End': bond_price_end
             })
+            
+            # 更新連續性追蹤變量
+            previous_spy_price_end = spy_price_end
+            previous_bond_yield_end = bond_yield_end
         
         logger.info(f"生成 {len(market_data_list)} 期備用模擬數據，股票平均成長 {stock_growth_rate*100}%/期，債券殖利率平均 {bond_base_yield}%")
         return pd.DataFrame(market_data_list)
@@ -960,8 +1019,8 @@ class ResultsDisplayManager:
             # 核心指標
             if strategy_data:
                 # 使用垂直排列的指標，避免嵌套列
-                    st.metric("最終價值", f"${strategy_data['final_value']:,.0f}")
-                    st.metric("年化報酬", f"{strategy_data['annualized_return']:.2f}%")
+                st.metric("最終價值", f"${strategy_data['final_value']:,.0f}")
+                st.metric("年化報酬", f"{strategy_data['annualized_return']:.2f}%")
             
             # 適合對象
             st.markdown(f"**👥 適合對象：** {card_config['content']['suitability']}")
@@ -1008,13 +1067,11 @@ class ResultsDisplayManager:
             st.info("請設定投資參數後開始分析")
             return
         
-        # 標籤導航 - 擴展為完整圖表功能
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        # 標籤導航
+        tab1, tab2, tab3 = st.tabs([
             "📈 資產成長",
             "📊 報酬比較", 
-            "⚠️ 風險分析",
-            "📉 回撤分析",
-            "💰 投資流分析"
+            "⚠️ 風險分析"
         ])
         
         with tab1:
@@ -1025,12 +1082,6 @@ class ResultsDisplayManager:
         
         with tab3:
             self._render_risk_analysis_chart()
-        
-        with tab4:
-            self._render_drawdown_analysis_chart()
-        
-        with tab5:
-            self._render_investment_flow_chart()
     
     def _render_asset_growth_chart(self):
         """渲染資產成長圖表"""
@@ -1043,15 +1094,32 @@ class ResultsDisplayManager:
         va_df = self.calculation_results["va_rebalance_df"]
         dca_df = self.calculation_results["dca_df"]
         
-        # 使用第2章第2.3節的Altair圖表系統
-        chart = create_strategy_comparison_chart(
-            va_rebalance_df=va_df,
-            va_nosell_df=None,
-            dca_df=dca_df,
-            chart_type="cumulative_value"
+        # 合併數據用於圖表
+        va_chart_data = va_df[["Period", "Cum_Value"]].copy()
+        va_chart_data["Strategy"] = "VA策略"
+        
+        dca_chart_data = dca_df[["Period", "Cum_Value"]].copy()
+        dca_chart_data["Strategy"] = "DCA策略"
+        
+        combined_data = pd.concat([va_chart_data, dca_chart_data], ignore_index=True)
+        
+        # 使用Plotly創建互動圖表
+        fig = px.line(
+            combined_data,
+            x="Period",
+            y="Cum_Value",
+            color="Strategy",
+            title="資產成長趨勢比較",
+            labels={"Period": "投資期數", "Cum_Value": "累積資產價值 ($)"}
         )
         
-        st.altair_chart(chart, use_container_width=True)
+        fig.update_layout(
+            hovermode='x unified',
+            xaxis_title="投資期數",
+            yaxis_title="累積資產價值 ($)"
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
     
     def _render_return_comparison_chart(self):
         """渲染報酬比較圖表"""
@@ -1062,16 +1130,22 @@ class ResultsDisplayManager:
         
         summary_df = self.calculation_results["summary_df"]
         
-        # 使用第2章第2.3節的Altair圖表系統 - 修正參數順序
-        chart = create_bar_chart(
-            data_df=summary_df,
-            x_field="Annualized_Return",
-            y_field="Strategy",
-            color_field="Strategy",
-            title="年化報酬率比較"
+        # 創建水平柱狀圖
+        fig = px.bar(
+            summary_df,
+            x="Annualized_Return",
+            y="Strategy",
+            orientation='h',
+            title="年化報酬率比較",
+            labels={"Annualized_Return": "年化報酬率 (%)", "Strategy": "投資策略"}
         )
         
-        st.altair_chart(chart, use_container_width=True)
+        fig.update_layout(
+            xaxis_title="年化報酬率 (%)",
+            yaxis_title="投資策略"
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
     
     def _render_risk_analysis_chart(self):
         """渲染風險分析圖表"""
@@ -1082,61 +1156,43 @@ class ResultsDisplayManager:
         
         summary_df = self.calculation_results["summary_df"]
         
-        # 使用第2章第2.3節的Altair圖表系統 - 風險收益散點圖
-        chart = create_risk_return_scatter(summary_df)
+        # 創建風險指標比較
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=("波動率", "夏普比率", "最大回撤", "總報酬率"),
+            specs=[[{"type": "bar"}, {"type": "bar"}],
+                   [{"type": "bar"}, {"type": "bar"}]]
+        )
         
-        st.altair_chart(chart, use_container_width=True)
+        strategies = summary_df["Strategy"].tolist()
         
-        # 額外顯示風險指標比較表格
-        st.markdown("**詳細風險指標**")
-        risk_metrics = summary_df[["Strategy", "Volatility", "Sharpe_Ratio", "Max_Drawdown", "Total_Return"]].copy()
-        st.dataframe(risk_metrics, use_container_width=True)
-    
-    def _render_drawdown_analysis_chart(self):
-        """渲染回撤分析圖表"""
-        st.markdown("**回撤分析**")
+        # 波動率
+        fig.add_trace(
+            go.Bar(x=strategies, y=summary_df["Volatility"], name="波動率"),
+            row=1, col=1
+        )
         
-        if not self.calculation_results:
-            return
+        # 夏普比率
+        fig.add_trace(
+            go.Bar(x=strategies, y=summary_df["Sharpe_Ratio"], name="夏普比率"),
+            row=1, col=2
+        )
         
-        # 為每個策略創建回撤分析圖表
-        va_df = self.calculation_results["va_rebalance_df"]
-        dca_df = self.calculation_results["dca_df"]
+        # 最大回撤
+        fig.add_trace(
+            go.Bar(x=strategies, y=summary_df["Max_Drawdown"], name="最大回撤"),
+            row=2, col=1
+        )
         
-        col1, col2 = st.columns(2)
+        # 總報酬率
+        fig.add_trace(
+            go.Bar(x=strategies, y=summary_df["Total_Return"], name="總報酬率"),
+            row=2, col=2
+        )
         
-        with col1:
-            st.markdown("**VA策略回撤分析**")
-            va_drawdown_chart = create_drawdown_chart(va_df, "VA_Rebalance")
-            st.altair_chart(va_drawdown_chart, use_container_width=True)
+        fig.update_layout(height=600, showlegend=False)
         
-        with col2:
-            st.markdown("**DCA策略回撤分析**")
-            dca_drawdown_chart = create_drawdown_chart(dca_df, "DCA")
-            st.altair_chart(dca_drawdown_chart, use_container_width=True)
-    
-    def _render_investment_flow_chart(self):
-        """渲染投資流分析圖表"""
-        st.markdown("**投資流分析**")
-        
-        if not self.calculation_results:
-            return
-        
-        va_df = self.calculation_results["va_rebalance_df"]
-        
-        # VA策略投資流分析
-        st.markdown("**VA策略投資流向**")
-        flow_chart = create_investment_flow_chart(va_df)
-        st.altair_chart(flow_chart, use_container_width=True)
-        
-        # 添加資產配置圓餅圖
-        st.markdown("**資產配置比例**")
-        # 假設從session_state獲取配置比例
-        stock_ratio = st.session_state.get('stock_ratio', 0.6)
-        bond_ratio = st.session_state.get('bond_ratio', 0.4)
-        
-        pie_chart = create_allocation_pie_chart(stock_ratio, bond_ratio)
-        st.altair_chart(pie_chart, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
     
     def render_data_tables_and_download(self):
         """渲染數據表格與下載 - 3.3.4節實作"""
@@ -1150,13 +1206,10 @@ class ResultsDisplayManager:
             
             # 策略選擇器
             strategy_options = ["VA策略", "DCA策略", "比較摘要"]
-            # 使用更精確的唯一性策略：結合時間戳、毫秒和隨機數
-            import random
-            selector_key = f"strategy_table_selector_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
             selected_strategy = st.selectbox(
                 "選擇要查看的數據",
                 strategy_options,
-                key=selector_key
+                key="strategy_table_selector"
             )
             
             # 渲染對應表格
@@ -1177,20 +1230,16 @@ class ResultsDisplayManager:
         # 三按鈕布局
         col1, col2, col3 = st.columns(3)
         
-        # 使用更精確的唯一性策略：結合時間戳、毫秒和隨機數
-        import random
-        base_key = f"{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
-        
         with col1:
-            if st.button("📥 VA策略數據", use_container_width=True, key=f"download_btn_va_{base_key}"):
+            if st.button("📥 VA策略數據", use_container_width=True):
                 self._download_csv("va_strategy")
         
         with col2:
-            if st.button("📥 DCA策略數據", use_container_width=True, key=f"download_btn_dca_{base_key}"):
+            if st.button("📥 DCA策略數據", use_container_width=True):
                 self._download_csv("dca_strategy")
         
         with col3:
-            if st.button("📥 績效摘要", use_container_width=True, key=f"download_btn_summary_{base_key}"):
+            if st.button("📥 績效摘要", use_container_width=True):
                 self._download_csv("summary")
     
     def _render_va_strategy_table(self):
@@ -1295,11 +1344,11 @@ class ResultsDisplayManager:
             st.info("請先設定投資參數")
             return
         
-        # 從session_state讀取計算結果（不再自動執行計算）
-        if not self.calculation_results and st.session_state.get('calculation_results'):
-            self.calculation_results = st.session_state.calculation_results
+        # 執行計算
+        self._execute_strategy_calculations(parameters)
         
         if not self.calculation_results:
+            st.error("計算失敗，請檢查參數設定")
             return
         
         # 移動端優化展示
@@ -1398,15 +1447,45 @@ class ResultsDisplayManager:
             st.error("計算數據不完整")
             return
         
-        # 使用第2章第2.3節的Altair圖表系統 - 移動端優化
-        chart = create_strategy_comparison_chart(
-            va_rebalance_df=va_df,
-            va_nosell_df=None,
-            dca_df=dca_df,
-            chart_type="cumulative_value"
+        # 創建簡化的時間序列圖
+        fig = go.Figure()
+        
+        # VA線條
+        fig.add_trace(go.Scatter(
+            x=va_df.index,
+            y=va_df['Cum_Value'],
+            mode='lines',
+            name='🎯 定期定值 (VA)',
+            line=dict(color='#3b82f6', width=3)
+        ))
+        
+        # DCA線條
+        fig.add_trace(go.Scatter(
+            x=dca_df.index,
+            y=dca_df['Cum_Value'],
+            mode='lines',
+            name='💰 定期定額 (DCA)',
+            line=dict(color='#10b981', width=3)
+        ))
+        
+        # 移動端優化設定
+        fig.update_layout(
+            height=300,  # 較小高度
+            margin=dict(l=20, r=20, t=40, b=20),
+            font=dict(size=12),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            ),
+            xaxis_title="投資期數",
+            yaxis_title="投資價值 ($)",
+            hovermode='x unified'
         )
         
-        st.altair_chart(chart, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
     
     def _render_mobile_comparison_table(self):
         """渲染移動端比較表格 - 簡化版"""

@@ -159,8 +159,10 @@ def calculate_va_strategy(C0: float,
                 
                 # 4. Invested欄位顯示期末的investment_gap，符合需求文件
                 period_data["Invested"] = va_result["actual_investment"]
-                period_data["stock_trade_units"] = trade_result["stock_trade_units"] + va_result["stock_trade_units"]
-                period_data["bond_trade_units"] = trade_result["bond_trade_units"] + va_result["bond_trade_units"]
+                # 修正：stock_trade_units欄位只顯示當期股票買賣單位數（期末調整）
+                # C0期初投入已反映在累積單位數中，stock_trade_units只顯示期末調整的交易量
+                period_data["stock_trade_units"] = va_result["stock_trade_units"]
+                period_data["bond_trade_units"] = va_result["bond_trade_units"]
                 cum_inv += va_result["actual_investment"]
                 
                 # 更新累積單位數（包含期末調整）- 修正：避免重複累加
