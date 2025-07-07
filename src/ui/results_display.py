@@ -23,7 +23,16 @@ from models.calculation_formulas import calculate_annualized_return
 from models.strategy_engine import calculate_va_strategy, calculate_dca_strategy
 from models.table_calculator import calculate_summary_metrics
 from models.table_specifications import VA_COLUMNS_ORDER, DCA_COLUMNS_ORDER, PERCENTAGE_PRECISION_RULES
-from models.chart_visualizer import create_strategy_comparison_chart, create_bar_chart, create_line_chart
+from models.chart_visualizer import (
+    create_strategy_comparison_chart, 
+    create_bar_chart, 
+    create_line_chart,
+    create_scatter_chart,
+    create_drawdown_chart,
+    create_risk_return_scatter,
+    create_investment_flow_chart,
+    create_allocation_pie_chart
+)
 
 # ============================================================================
 # 3.3.1 頂部摘要卡片實作 - SUMMARY_METRICS_DISPLAY
@@ -146,6 +155,22 @@ SIMPLIFIED_CHARTS_CONFIG = {
             "description": "風險指標比較",
             "data_source": "第2章績效指標計算模組",
             "visualization": "horizontal_comparison_bars"
+        },
+        "investment_flow": {
+            "icon": "💰",
+            "label": "投資流分析",
+            "chart_type": "investment_flow_chart",
+            "description": "VA策略投資行為分析",
+            "data_source": "第2章VA策略計算結果",
+            "visualization": "investment_flow_bar_chart"
+        },
+        "portfolio_analysis": {
+            "icon": "🥧",
+            "label": "組合分析",
+            "chart_type": "portfolio_charts",
+            "description": "資產配置與回撤分析",
+            "data_source": "第2章策略計算結果",
+            "visualization": "pie_chart_and_drawdown"
         }
     }
 }
@@ -1164,18 +1189,20 @@ class ResultsDisplayManager:
         return None
     
     def render_charts_display(self):
-        """渲染圖表顯示 - 3.3.3節實作"""
+        """渲染圖表顯示 - 3.3.3節實作 - 擴展到5個標籤頁"""
         st.markdown("### 📈 視覺化分析")
         
         if not self.calculation_results:
             st.info("請設定投資參數後開始分析")
             return
         
-        # 標籤導航
-        tab1, tab2, tab3 = st.tabs([
+        # 標籤導航 - 擴展到5個標籤頁符合需求文件
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📈 資產成長",
             "📊 報酬比較", 
-            "⚠️ 風險分析"
+            "⚠️ 風險分析",
+            "💰 投資流分析",
+            "🥧 組合分析"
         ])
         
         with tab1:
@@ -1186,47 +1213,38 @@ class ResultsDisplayManager:
         
         with tab3:
             self._render_risk_analysis_chart()
+        
+        with tab4:
+            self._render_investment_flow_chart()
+        
+        with tab5:
+            self._render_portfolio_analysis_chart()
     
     def _render_asset_growth_chart(self):
-        """渲染資產成長圖表"""
+        """渲染資產成長圖表 - 使用Altair符合需求文件"""
         st.markdown("**兩種策略的資產累積對比**")
         
         if not self.calculation_results:
             return
         
-        # 準備數據
-        va_df = self.calculation_results["va_rebalance_df"]
-        dca_df = self.calculation_results["dca_df"]
-        
-        # 合併數據用於圖表
-        va_chart_data = va_df[["Period", "Cum_Value"]].copy()
-        va_chart_data["Strategy"] = "VA策略"
-        
-        dca_chart_data = dca_df[["Period", "Cum_Value"]].copy()
-        dca_chart_data["Strategy"] = "DCA策略"
-        
-        combined_data = pd.concat([va_chart_data, dca_chart_data], ignore_index=True)
-        
-        # 使用Plotly創建互動圖表
-        fig = px.line(
-            combined_data,
-            x="Period",
-            y="Cum_Value",
-            color="Strategy",
-            title="資產成長趨勢比較",
-            labels={"Period": "投資期數", "Cum_Value": "累積資產價值 ($)"}
-        )
-        
-        fig.update_layout(
-            hovermode='x unified',
-            xaxis_title="投資期數",
-            yaxis_title="累積資產價值 ($)"
-        )
-        
-        st.plotly_chart(fig, use_container_width=True, key="asset_growth_chart")
+        # 使用第2章圖表視覺化模組的策略比較圖表
+        try:
+            chart = create_strategy_comparison_chart(
+                va_rebalance_df=self.calculation_results["va_rebalance_df"],
+                va_nosell_df=None,  # 簡化版本不顯示NoSell策略
+                dca_df=self.calculation_results["dca_df"],
+                chart_type="cumulative_value"
+            )
+            
+            st.altair_chart(chart, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"圖表生成錯誤: {str(e)}")
+            # 降級到簡單線圖
+            self._render_fallback_line_chart()
     
     def _render_return_comparison_chart(self):
-        """渲染報酬比較圖表"""
+        """渲染報酬比較圖表 - 使用Altair符合需求文件"""
         st.markdown("**年化報酬率對比**")
         
         if not self.calculation_results:
@@ -1234,22 +1252,22 @@ class ResultsDisplayManager:
         
         summary_df = self.calculation_results["summary_df"]
         
-        # 創建水平柱狀圖
-        fig = px.bar(
-            summary_df,
-            x="Annualized_Return",
-            y="Strategy",
-            orientation='h',
-            title="年化報酬率比較",
-            labels={"Annualized_Return": "年化報酬率 (%)", "Strategy": "投資策略"}
-        )
-        
-        fig.update_layout(
-            xaxis_title="年化報酬率 (%)",
-            yaxis_title="投資策略"
-        )
-        
-        st.plotly_chart(fig, use_container_width=True, key="return_comparison_chart")
+        # 使用第2章圖表視覺化模組的柱狀圖
+        try:
+            chart = create_bar_chart(
+                data_df=summary_df,
+                x_field="Annualized_Return",
+                y_field="Strategy",
+                color_field="Strategy",
+                title="年化報酬率比較"
+            )
+            
+            st.altair_chart(chart, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"圖表生成錯誤: {str(e)}")
+            # 降級到簡單表格顯示
+            st.dataframe(summary_df[["Strategy", "Annualized_Return"]])
     
     def _render_risk_analysis_chart(self):
         """渲染風險分析圖表"""
@@ -1297,6 +1315,125 @@ class ResultsDisplayManager:
         fig.update_layout(height=600, showlegend=False)
         
         st.plotly_chart(fig, use_container_width=True, key="risk_analysis_chart")
+    
+    def _render_investment_flow_chart(self):
+        """渲染投資流分析圖表 - 新增的第4個標籤頁"""
+        st.markdown("**VA策略投資行為分析**")
+        
+        if not self.calculation_results:
+            return
+        
+        va_df = self.calculation_results["va_rebalance_df"]
+        
+        # 使用第2章圖表視覺化模組的投資流圖表
+        try:
+            chart = create_investment_flow_chart(va_df)
+            st.altair_chart(chart, use_container_width=True)
+            
+            # 添加說明文字
+            st.info("💡 **圖表說明**：綠色表示買入，紅色表示賣出，灰色表示持有。VA策略會根據市場波動調整投資金額。")
+            
+        except Exception as e:
+            st.error(f"投資流圖表生成錯誤: {str(e)}")
+            # 降級到簡單數據顯示
+            st.dataframe(va_df[["Period", "Invested", "Cum_Value"]].head(10))
+    
+    def _render_portfolio_analysis_chart(self):
+        """渲染組合分析圖表 - 新增的第5個標籤頁"""
+        st.markdown("**資產配置與回撤分析**")
+        
+        if not self.calculation_results:
+            return
+        
+        # 分兩欄顯示
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("##### 🥧 資產配置")
+            try:
+                # 從參數中獲取資產配置比例
+                stock_ratio = st.session_state.get('stock_ratio', 0.6)
+                bond_ratio = 1 - stock_ratio
+                
+                pie_chart = create_allocation_pie_chart(stock_ratio, bond_ratio)
+                st.altair_chart(pie_chart, use_container_width=True)
+                
+            except Exception as e:
+                st.error(f"資產配置圖表錯誤: {str(e)}")
+                # 降級到文字顯示
+                st.write(f"股票比例: {stock_ratio:.1%}")
+                st.write(f"債券比例: {bond_ratio:.1%}")
+        
+        with col2:
+            st.markdown("##### 📉 回撤分析")
+            try:
+                # 使用VA策略進行回撤分析
+                va_df = self.calculation_results["va_rebalance_df"]
+                drawdown_chart = create_drawdown_chart(va_df, "VA策略")
+                st.altair_chart(drawdown_chart, use_container_width=True)
+                
+            except Exception as e:
+                st.error(f"回撤分析圖表錯誤: {str(e)}")
+                # 降級到簡單統計
+                va_df = self.calculation_results["va_rebalance_df"]
+                max_drawdown = va_df["Cum_Value"].expanding().max()
+                current_drawdown = (va_df["Cum_Value"] - max_drawdown) / max_drawdown
+                st.write(f"最大回撤: {current_drawdown.min():.2%}")
+        
+        # 添加風險收益散點圖
+        st.markdown("##### 📊 風險收益分析")
+        try:
+            summary_df = self.calculation_results["summary_df"]
+            scatter_chart = create_risk_return_scatter(summary_df)
+            st.altair_chart(scatter_chart, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"風險收益散點圖錯誤: {str(e)}")
+            # 降級到表格顯示
+            summary_df = self.calculation_results["summary_df"]
+            st.dataframe(summary_df[["Strategy", "Annualized_Return", "Volatility", "Sharpe_Ratio"]])
+    
+    def _render_fallback_line_chart(self):
+        """降級線圖 - 當Altair圖表失敗時使用"""
+        try:
+            va_df = self.calculation_results["va_rebalance_df"]
+            dca_df = self.calculation_results["dca_df"]
+            
+            # 使用基礎線圖
+            combined_data = []
+            
+            # VA數據
+            for _, row in va_df.iterrows():
+                combined_data.append({
+                    "Period": row["Period"],
+                    "Cum_Value": row["Cum_Value"],
+                    "Strategy": "VA策略"
+                })
+            
+            # DCA數據
+            for _, row in dca_df.iterrows():
+                combined_data.append({
+                    "Period": row["Period"],
+                    "Cum_Value": row["Cum_Value"],
+                    "Strategy": "DCA策略"
+                })
+            
+            combined_df = pd.DataFrame(combined_data)
+            
+            chart = create_line_chart(
+                data_df=combined_df,
+                x_field="Period",
+                y_field="Cum_Value",
+                color_field="Strategy",
+                title="資產成長趨勢比較"
+            )
+            
+            st.altair_chart(chart, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"降級圖表也失敗: {str(e)}")
+            # 最終降級到數據表格
+            st.dataframe(combined_df.pivot(index="Period", columns="Strategy", values="Cum_Value"))
     
     def render_data_tables_and_download(self):
         """渲染數據表格與下載 - 3.3.4節實作"""
