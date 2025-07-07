@@ -381,10 +381,27 @@ class ResultsDisplayManager:
                 return self._generate_fallback_data(parameters)
             
             # 計算日期範圍（使用起始日期參數）
-            total_periods = parameters["total_periods"]
+            # 根據投資年數和頻率計算總期數
+            investment_years = parameters.get("investment_periods", 30)
+            frequency = parameters.get("investment_frequency", "annually")
+            
+            # 使用 FREQUENCY_MAPPING 計算總期數
+            from src.models.calculation_formulas import FREQUENCY_MAPPING
+            if frequency.lower() == "annually":
+                periods_per_year = FREQUENCY_MAPPING["Annually"]["periods_per_year"]
+            elif frequency.lower() == "quarterly":
+                periods_per_year = FREQUENCY_MAPPING["Quarterly"]["periods_per_year"]
+            elif frequency.lower() == "monthly":
+                periods_per_year = FREQUENCY_MAPPING["Monthly"]["periods_per_year"]
+            elif frequency.lower() == "semi_annually":
+                periods_per_year = FREQUENCY_MAPPING["Semi-annually"]["periods_per_year"]
+            else:
+                periods_per_year = 1  # 預設為年度
+            
+            total_periods = investment_years * periods_per_year
             
             # 獲取起始日期參數
-            user_start_date = parameters.get("investment_start_date")
+            user_start_date = parameters.get("start_date") or parameters.get("investment_start_date")
             if user_start_date:
                 # 將date對象轉換為datetime對象
                 if isinstance(user_start_date, datetime):
@@ -531,10 +548,16 @@ class ResultsDisplayManager:
                     else:
                         bond_yield_origin = 3.0  # 預設起始殖利率
                 else:
-                    # 第二期開始：建立價格相依性但不完全相同的機制
-                    if previous_spy_price_end is not None:
-                        # 修正：前期期末價格與當期期初價格應有相依性但不完全相同
-                        # 基於前期期末價格，加入小幅隔夜變動（符合第一章數據源要求）
+                    # 第二期開始：優先使用真實API數據，只在無法獲取時才使用相依性機制
+                    if is_real_data_available and len(spy_data) > 0:
+                        # 真實數據期間：直接使用API數據
+                        closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                        spy_price_origin = spy_data.get(closest_spy_date) if closest_spy_date else None
+                        if spy_price_origin is None:
+                            spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
+                        logger.debug(f"期間{period}：使用真實API數據，期初價格{spy_price_origin}")
+                    elif previous_spy_price_end is not None:
+                        # 模擬數據期間：基於前期期末價格加入隔夜變動
                         import numpy as np
                         np.random.seed(42 + period * 23)  # 確保可重現的隔夜變動
                         
@@ -543,17 +566,20 @@ class ResultsDisplayManager:
                         overnight_change = max(-0.01, min(0.01, overnight_change))  # 限制在±1%
                         
                         spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
-                        logger.debug(f"期間{period}：基於前期期末價格{previous_spy_price_end}，加入{overnight_change:.4f}隔夜變動，期初價格{spy_price_origin}")
+                        logger.debug(f"期間{period}：模擬數據期間，基於前期期末價格{previous_spy_price_end}，加入{overnight_change:.4f}隔夜變動，期初價格{spy_price_origin}")
                     else:
-                        # 備用方案：使用API數據或預設值
-                        if is_real_data_available and len(spy_data) > 0:
-                            closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                            spy_price_origin = spy_data.get(closest_spy_date) if closest_spy_date else list(spy_data.values())[-1]
-                        else:
-                            spy_price_origin = 400.0
+                        # 最後備用方案
+                        spy_price_origin = 400.0
                     
-                    if previous_bond_yield_end is not None:
-                        # 修正：債券殖利率也需要相依性但不完全相同
+                    if is_real_data_available and len(bond_data) > 0:
+                        # 真實數據期間：直接使用API數據
+                        closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                        bond_yield_origin = bond_data.get(closest_bond_date) if closest_bond_date else None
+                        if bond_yield_origin is None:
+                            bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
+                        logger.debug(f"期間{period}：使用真實API債券數據，期初殖利率{bond_yield_origin}")
+                    elif previous_bond_yield_end is not None:
+                        # 模擬數據期間：基於前期期末殖利率加入隔夜變動
                         import numpy as np
                         np.random.seed(42 + period * 29)  # 不同種子避免與股價同步
                         
@@ -562,56 +588,51 @@ class ResultsDisplayManager:
                         overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))  # 限制在±0.1%
                         
                         bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
-                        logger.debug(f"期間{period}：基於前期期末殖利率{previous_bond_yield_end}，加入{overnight_yield_change:.4f}隔夜變動，期初殖利率{bond_yield_origin}")
+                        logger.debug(f"期間{period}：模擬數據期間，基於前期期末殖利率{previous_bond_yield_end}，加入{overnight_yield_change:.4f}隔夜變動，期初殖利率{bond_yield_origin}")
                     else:
-                        # 備用方案：使用API數據或預設值
-                        if is_real_data_available and len(bond_data) > 0:
-                            closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                            bond_yield_origin = bond_data.get(closest_bond_date) if closest_bond_date else list(bond_data.values())[-1]
-                        else:
-                            bond_yield_origin = 3.0
+                        # 最後備用方案
+                        bond_yield_origin = 3.0
                 
                 # 債券價格計算（簡化公式）
                 bond_price_origin = round(100.0 / (1 + bond_yield_origin/100), 2)
                 
-                # 生成期末價格 - 改進波動模型確保連續性
+                # 生成期末價格 - 優先使用真實API數據
                 import numpy as np
                 
-                if is_real_data_available and period == 0:
-                    # 第一期真實數據：可以使用較大的波動
-                    np.random.seed(42 + period)  # 使用期數作為種子確保可重現性
+                if is_real_data_available:
+                    # 真實數據期間：嘗試使用API數據
+                    if len(spy_data) > 0:
+                        # 找最接近期末日期的SPY價格
+                        closest_spy_end_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_end).days), default=None)
+                        if closest_spy_end_date and abs((datetime.strptime(closest_spy_end_date, '%Y-%m-%d') - period_end).days) <= 30:
+                            # 如果找到30天內的數據，使用真實數據
+                            spy_price_end = spy_data[closest_spy_end_date]
+                            logger.debug(f"期間{period}：使用真實API期末數據，期末價格{spy_price_end}")
+                        else:
+                            # 如果沒有找到接近的數據，使用小幅波動模擬
+                            np.random.seed(42 + period)
+                            stock_return = np.random.normal(0.02, 0.10)  # 10%波動
+                            spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                            logger.debug(f"期間{period}：無法找到合適的真實期末數據，使用模擬波動，期末價格{spy_price_end}")
+                    else:
+                        # 沒有SPY數據，使用模擬
+                        np.random.seed(42 + period)
+                        stock_return = np.random.normal(0.02, 0.10)
+                        spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
                     
-                    # 股票價格：有成長趨勢但也有下跌可能
-                    stock_return = np.random.normal(0.02, 0.15)  # 平均2%成長，15%波動
-                    spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
-                    
-                    # 債券殖利率：有小幅波動
-                    bond_yield_change = np.random.normal(0, 0.2)  # 殖利率波動
-                    bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
-                elif is_real_data_available and period > 0:
-                    # 後續真實數據期間：使用控制的波動確保連續性
-                    np.random.seed(42 + period)
-                    
-                    # 控制股票價格變化幅度，確保連續性
-                    controlled_volatility = 0.10  # 10%波動
-                    stock_return = np.random.normal(0.02, controlled_volatility)
-                    spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
-                    
-                    # 確保價格變化在合理範圍內
-                    price_change_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
-                    if price_change_ratio > 0.15:  # 限制變化幅度
-                        max_change = 0.15 if spy_price_end > spy_price_origin else -0.15
-                        spy_price_end = round(spy_price_origin * (1 + max_change), 2)
-                    
-                    # 債券殖利率：較小的波動
-                    bond_yield_change = np.random.normal(0, 0.15)
-                    bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
-                    
-                    # 確保殖利率變化在合理範圍內
-                    yield_change_ratio = abs(bond_yield_end - bond_yield_origin) / bond_yield_origin
-                    if yield_change_ratio > 0.20:
-                        max_yield_change = 0.20 if bond_yield_end > bond_yield_origin else -0.20
-                        bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin * (1 + max_yield_change))), 4)
+                    # 債券殖利率期末數據
+                    if len(bond_data) > 0:
+                        closest_bond_end_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_end).days), default=None)
+                        if closest_bond_end_date and abs((datetime.strptime(closest_bond_end_date, '%Y-%m-%d') - period_end).days) <= 30:
+                            bond_yield_end = bond_data[closest_bond_end_date]
+                            logger.debug(f"期間{period}：使用真實API債券期末數據，期末殖利率{bond_yield_end}")
+                        else:
+                            bond_yield_change = np.random.normal(0, 0.15)
+                            bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
+                            logger.debug(f"期間{period}：無法找到合適的真實債券期末數據，使用模擬波動")
+                    else:
+                        bond_yield_change = np.random.normal(0, 0.15)
+                        bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
                 else:
                     # 模擬數據期間：使用連續性保證的波動模型
                     base_seed = 42
@@ -701,8 +722,25 @@ class ResultsDisplayManager:
         logger.info("生成備用模擬數據")
         
         # 解析參數
-        total_periods = parameters.get("total_periods", 20)
-        user_start_date = parameters.get("investment_start_date", datetime.now().date())
+        # 根據投資年數和頻率計算總期數
+        investment_years = parameters.get("investment_periods", 30)
+        frequency = parameters.get("investment_frequency", "annually")
+        
+        # 使用 FREQUENCY_MAPPING 計算總期數
+        from src.models.calculation_formulas import FREQUENCY_MAPPING
+        if frequency.lower() == "annually":
+            periods_per_year = FREQUENCY_MAPPING["Annually"]["periods_per_year"]
+        elif frequency.lower() == "quarterly":
+            periods_per_year = FREQUENCY_MAPPING["Quarterly"]["periods_per_year"]
+        elif frequency.lower() == "monthly":
+            periods_per_year = FREQUENCY_MAPPING["Monthly"]["periods_per_year"]
+        elif frequency.lower() == "semi_annually":
+            periods_per_year = FREQUENCY_MAPPING["Semi-annually"]["periods_per_year"]
+        else:
+            periods_per_year = 1  # 預設為年度
+        
+        total_periods = investment_years * periods_per_year
+        user_start_date = parameters.get("start_date") or parameters.get("investment_start_date", datetime.now().date())
         
         # 確保start_date是datetime對象
         if isinstance(user_start_date, datetime):
