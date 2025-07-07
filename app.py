@@ -506,18 +506,29 @@ def detect_device_and_layout():
     # 檢測設備並調整布局
     st.session_state.responsive_manager.detect_device_and_layout()
     
-    # 收集用戶參數並顯示結果
+    # 收集用戶參數
     user_params = collect_user_parameters()
+    
+    # 只有當用戶明確觸發計算時才執行計算和顯示
     if user_params:
-        # 執行計算流程
-        calculation_results = simplified_calculation_flow(user_params)
+        # 檢查是否有計算觸發標記（只有點擊按鈕後才觸發）
+        if st.session_state.get('trigger_calculation', False):
+            # 清除觸發標記
+            st.session_state.trigger_calculation = False
+            
+            # 執行計算流程
+            calculation_results = simplified_calculation_flow(user_params)
+            
+            # 將計算結果傳遞給ResultsDisplayManager
+            if calculation_results:
+                st.session_state.results_manager.calculation_results = calculation_results
+                st.session_state.calculation_results = calculation_results
+                st.session_state.last_calculation_params = user_params.copy()
         
-        # 將計算結果傳遞給ResultsDisplayManager
-        if calculation_results:
-            st.session_state.results_manager.calculation_results = calculation_results
-        
-        # 顯示結果
-        st.session_state.results_manager.render_complete_results_display(user_params)
+        # 顯示結果（只有在有計算結果時才顯示）
+        if hasattr(st.session_state, 'calculation_results') and st.session_state.calculation_results:
+            st.session_state.results_manager.calculation_results = st.session_state.calculation_results
+            st.session_state.results_manager.render_complete_results_display(user_params)
 
 def collect_user_parameters():
     """
@@ -547,92 +558,88 @@ def simplified_calculation_flow(user_params):
     if not user_params:
         return None
     
-    # 檢查參數是否變更
-    if st.session_state.check_parameter_change(user_params):
-        st.session_state.parameter_changed = True
+    # 無條件執行計算（因為已經由觸發標記控制）
+    st.session_state.parameter_changed = True
         
-        # 顯示計算進度
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        try:
-            # 階段1：數據獲取（整合第1章）
-            status_text.text("🔄 階段1/4：獲取市場數據...")
-            progress_bar.progress(25)
-            
-            # 根據數據源狀態選擇數據獲取方式
-            if st.session_state.data_source_status == "real_data":
-                # 使用真實API數據
-                market_data = fetch_real_market_data(user_params)
-            else:
-                # 使用模擬數據
-                market_data = generate_simulation_data(user_params)
-            
-            # 階段2：參數轉換
-            status_text.text("⚙️ 階段2/4：轉換投資參數...")
-            progress_bar.progress(50)
-            
-            # 使用第2章的參數轉換函數
-            period_params = convert_annual_to_period_parameters(
-                user_params['investment_frequency'],
-                user_params['expected_stock_return'],
-                user_params['expected_bond_return'],
-                user_params['stock_volatility'],
-                user_params['bond_volatility']
-            )
-            
-            # 階段3：策略計算（整合第2章）
-            status_text.text("📊 階段3/4：執行策略計算...")
-            progress_bar.progress(75)
-            
-            # VA策略計算
-            va_results = calculate_va_strategy(user_params, market_data)
-            
-            # DCA策略計算
-            dca_results = calculate_dca_strategy(user_params, market_data)
-            
-            # 階段4：結果整理
-            status_text.text("✅ 階段4/4：整理計算結果...")
-            progress_bar.progress(100)
-            
-            # 計算摘要指標
-            summary_df = calculate_summary_metrics(
-                va_rebalance_df=va_results,
-                dca_df=dca_results,
-                initial_investment=user_params.get('initial_investment', 10000),
-                periods_per_year=4,  # 季度頻率
-                risk_free_rate=2.0
-            )
-            
-            # 整理最終結果 - 符合ResultsDisplayManager期望的格式
-            calculation_results = {
-                'va_rebalance_df': va_results,
-                'dca_df': dca_results,
-                'summary_df': summary_df,
-                'market_data': market_data,
-                'parameters': user_params,
-                'calculation_time': datetime.now()
-            }
-            
-            # 更新狀態
-            st.session_state.calculation_results = calculation_results
-            st.session_state.last_calculation_params = user_params.copy()
-            st.session_state.parameter_changed = False
-            
-            # 清除進度顯示
-            progress_bar.empty()
-            status_text.empty()
-            
-            return calculation_results
-            
-        except Exception as e:
-            progress_bar.empty()
-            status_text.empty()
-            st.error(f"計算過程發生錯誤: {str(e)}")
-            return None
+    # 顯示計算進度
+    progress_bar = st.progress(0)
+    status_text = st.empty()
     
-    # 參數未變更，返回已有結果
-    return st.session_state.calculation_results
+    try:
+        # 階段1：數據獲取（整合第1章）
+        status_text.text("🔄 階段1/4：獲取市場數據...")
+        progress_bar.progress(25)
+        
+        # 根據數據源狀態選擇數據獲取方式
+        if st.session_state.data_source_status == "real_data":
+            # 使用真實API數據
+            market_data = fetch_real_market_data(user_params)
+        else:
+            # 使用模擬數據
+            market_data = generate_simulation_data(user_params)
+        
+        # 階段2：參數轉換
+        status_text.text("⚙️ 階段2/4：轉換投資參數...")
+        progress_bar.progress(50)
+        
+        # 使用第2章的參數轉換函數
+        period_params = convert_annual_to_period_parameters(
+            user_params['investment_frequency'],
+            user_params['expected_stock_return'],
+            user_params['expected_bond_return'],
+            user_params['stock_volatility'],
+            user_params['bond_volatility']
+        )
+        
+        # 階段3：策略計算（整合第2章）
+        status_text.text("📊 階段3/4：執行策略計算...")
+        progress_bar.progress(75)
+        
+        # VA策略計算
+        va_results = calculate_va_strategy(user_params, market_data)
+        
+        # DCA策略計算
+        dca_results = calculate_dca_strategy(user_params, market_data)
+        
+        # 階段4：結果整理
+        status_text.text("✅ 階段4/4：整理計算結果...")
+        progress_bar.progress(100)
+        
+        # 計算摘要指標
+        summary_df = calculate_summary_metrics(
+            va_rebalance_df=va_results,
+            dca_df=dca_results,
+            initial_investment=user_params.get('initial_investment', 10000),
+            periods_per_year=4,  # 季度頻率
+            risk_free_rate=2.0
+        )
+        
+        # 整理最終結果 - 符合ResultsDisplayManager期望的格式
+        calculation_results = {
+            'va_rebalance_df': va_results,
+            'dca_df': dca_results,
+            'summary_df': summary_df,
+            'market_data': market_data,
+            'parameters': user_params,
+            'calculation_time': datetime.now()
+        }
+        
+        # 更新狀態
+        st.session_state.calculation_results = calculation_results
+        st.session_state.last_calculation_params = user_params.copy()
+        st.session_state.parameter_changed = False
+        
+        # 清除進度顯示
+        progress_bar.empty()
+        status_text.empty()
+        
+        return calculation_results
+        
+    except Exception as e:
+        progress_bar.empty()
+        status_text.empty()
+        st.error(f"計算過程發生錯誤: {str(e)}")
+        return None
 
 def fetch_real_market_data(user_params):
     """

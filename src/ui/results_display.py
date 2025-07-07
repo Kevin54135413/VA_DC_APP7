@@ -14,6 +14,7 @@ import altair as alt
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import time
 
 # 添加src目錄到Python路徑
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -210,17 +211,9 @@ class ResultsDisplayManager:
         
     def render_complete_results_display(self, parameters: Dict[str, Any]):
         """渲染完整中央結果展示區域"""
-        # 檢查是否有計算觸發
-        if st.session_state.get('trigger_calculation', False):
-            # 清除觸發標記
-            st.session_state.trigger_calculation = False
-            
-        # 執行策略計算
-        self._execute_strategy_calculations(parameters)
-        
-        # 記錄計算時間
+        # 記錄顯示時間
         from datetime import datetime
-        st.session_state.last_calculation_time = datetime.now()
+        st.session_state.last_display_time = datetime.now()
         
         # 顯示計算完成信息
         st.success("✅ 計算完成！以下是您的投資策略分析結果：")
@@ -228,11 +221,6 @@ class ResultsDisplayManager:
         # 從session_state讀取計算結果（如果有的話）
         if not self.calculation_results and st.session_state.get('calculation_results'):
             self.calculation_results = st.session_state.calculation_results
-        
-        # 如果沒有計算結果，顯示提示
-        if not self.calculation_results:
-            st.info("👈 請在左側設定投資參數，然後點擊「🎯 執行策略計算」按鈕開始分析")
-            return
         
         # 渲染頂部摘要卡片
         self.render_summary_metrics_display()
@@ -1162,10 +1150,13 @@ class ResultsDisplayManager:
             
             # 策略選擇器
             strategy_options = ["VA策略", "DCA策略", "比較摘要"]
+            # 使用更精確的唯一性策略：結合時間戳、毫秒和隨機數
+            import random
+            selector_key = f"strategy_table_selector_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
             selected_strategy = st.selectbox(
                 "選擇要查看的數據",
                 strategy_options,
-                key="strategy_table_selector"
+                key=selector_key
             )
             
             # 渲染對應表格
@@ -1186,16 +1177,20 @@ class ResultsDisplayManager:
         # 三按鈕布局
         col1, col2, col3 = st.columns(3)
         
+        # 使用更精確的唯一性策略：結合時間戳、毫秒和隨機數
+        import random
+        base_key = f"{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+        
         with col1:
-            if st.button("📥 VA策略數據", use_container_width=True):
+            if st.button("📥 VA策略數據", use_container_width=True, key=f"download_btn_va_{base_key}"):
                 self._download_csv("va_strategy")
         
         with col2:
-            if st.button("📥 DCA策略數據", use_container_width=True):
+            if st.button("📥 DCA策略數據", use_container_width=True, key=f"download_btn_dca_{base_key}"):
                 self._download_csv("dca_strategy")
         
         with col3:
-            if st.button("📥 績效摘要", use_container_width=True):
+            if st.button("📥 績效摘要", use_container_width=True, key=f"download_btn_summary_{base_key}"):
                 self._download_csv("summary")
     
     def _render_va_strategy_table(self):
@@ -1300,11 +1295,11 @@ class ResultsDisplayManager:
             st.info("請先設定投資參數")
             return
         
-        # 執行計算
-        self._execute_strategy_calculations(parameters)
+        # 從session_state讀取計算結果（不再自動執行計算）
+        if not self.calculation_results and st.session_state.get('calculation_results'):
+            self.calculation_results = st.session_state.calculation_results
         
         if not self.calculation_results:
-            st.error("計算失敗，請檢查參數設定")
             return
         
         # 移動端優化展示
