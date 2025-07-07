@@ -78,8 +78,8 @@ class SimulationDataGenerator:
         Args:
             random_seed: 隨機種子，用於結果重現
         """
-        if random_seed is not None:
-            np.random.seed(random_seed)
+        self.random_seed = random_seed
+        # 不在初始化時設定全域隨機種子，確保每次調用都能產生不同的隨機序列
         
         # 預設市場情境配置
         self.market_scenarios = {
@@ -337,6 +337,18 @@ class SimulationDataGenerator:
         if n_days == 0:
             return np.array([])
         
+        # 使用動態隨機種子確保每次調用都產生不同的隨機序列
+        if self.random_seed is None:
+            # 基於當前時間戳和日期範圍生成動態種子
+            import time
+            dynamic_seed = int(time.time() * 1000000) % 2147483647
+            dynamic_seed ^= hash(dates[0].strftime('%Y-%m-%d')) % 2147483647
+            np.random.seed(dynamic_seed)
+        else:
+            # 如果指定了隨機種子，結合日期信息確保不同期間有不同的隨機序列
+            combined_seed = (self.random_seed + hash(dates[0].strftime('%Y-%m-%d'))) % 2147483647
+            np.random.seed(combined_seed)
+        
         # 計算日報酬率參數
         daily_return = config.annual_return / 252  # 252個交易日
         daily_volatility = config.annual_volatility / np.sqrt(252)
@@ -389,6 +401,18 @@ class SimulationDataGenerator:
         
         if n_days == 0:
             return np.array([])
+        
+        # 使用動態隨機種子確保每次調用都產生不同的隨機序列
+        if self.random_seed is None:
+            # 基於當前時間戳和日期範圍生成動態種子
+            import time
+            dynamic_seed = int(time.time() * 1000000) % 2147483647
+            dynamic_seed ^= hash(dates[0].strftime('%Y-%m-%d-yield')) % 2147483647
+            np.random.seed(dynamic_seed)
+        else:
+            # 如果指定了隨機種子，結合日期信息確保不同期間有不同的隨機序列
+            combined_seed = (self.random_seed + hash(dates[0].strftime('%Y-%m-%d-yield'))) % 2147483647
+            np.random.seed(combined_seed)
         
         # 初始化
         yields = np.zeros(n_days)
@@ -581,6 +605,20 @@ class SimulationDataGenerator:
             volatility = market_params.get('volatility', 0.15)
             drift_component = market_params.get('drift_component', 0.0)
             mean_reversion = market_params.get('mean_reversion', 0.0)
+            
+            # 設定基於期間的動態隨機種子確保每期都有不同的隨機序列
+            period_num = period_info.get('period', 1)
+            start_date_str = trading_days[0].strftime('%Y-%m-%d')
+            if self.random_seed is None:
+                # 基於當前時間戳、期間編號和起始日期生成動態種子
+                import time
+                dynamic_seed = int(time.time() * 1000000) % 2147483647
+                dynamic_seed ^= (period_num * 31 + hash(start_date_str)) % 2147483647
+                np.random.seed(dynamic_seed)
+            else:
+                # 如果指定了隨機種子，結合期間信息確保不同期間有不同的隨機序列
+                combined_seed = (self.random_seed + period_num * 31 + hash(start_date_str)) % 2147483647
+                np.random.seed(combined_seed)
             
             # 使用幾何布朗運動生成每日價格
             for i, date in enumerate(trading_days):
