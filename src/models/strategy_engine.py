@@ -163,7 +163,7 @@ def calculate_va_strategy(C0: float,
                 period_data["bond_trade_units"] = trade_result["bond_trade_units"] + va_result["bond_trade_units"]
                 cum_inv += va_result["actual_investment"]
                 
-                # 更新累積單位數（包含期末調整）
+                # 更新累積單位數（包含期末調整）- 修正：避免重複累加
                 cum_stock_units += va_result["stock_trade_units"]
                 cum_bond_units += va_result["bond_trade_units"]
             else:
@@ -181,10 +181,10 @@ def calculate_va_strategy(C0: float,
                 period_data["stock_trade_units"] = va_result["stock_trade_units"]
                 period_data["bond_trade_units"] = va_result["bond_trade_units"]
                 cum_inv += va_result["actual_investment"]
-            
-            # 更新累積單位數
-            cum_stock_units += period_data["stock_trade_units"]
-            cum_bond_units += period_data["bond_trade_units"]
+                
+                # 更新累積單位數（僅期末調整）
+                cum_stock_units += period_data["stock_trade_units"]
+                cum_bond_units += period_data["bond_trade_units"]
             
             period_data["Cum_stock_units"] = cum_stock_units
             period_data["Cum_bond_units"] = cum_bond_units
