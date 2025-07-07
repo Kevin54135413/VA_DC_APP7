@@ -1119,7 +1119,7 @@ class ResultsDisplayManager:
             yaxis_title="累積資產價值 ($)"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="asset_growth_chart")
     
     def _render_return_comparison_chart(self):
         """渲染報酬比較圖表"""
@@ -1145,7 +1145,7 @@ class ResultsDisplayManager:
             yaxis_title="投資策略"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="return_comparison_chart")
     
     def _render_risk_analysis_chart(self):
         """渲染風險分析圖表"""
@@ -1192,7 +1192,7 @@ class ResultsDisplayManager:
         
         fig.update_layout(height=600, showlegend=False)
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="risk_analysis_chart")
     
     def render_data_tables_and_download(self):
         """渲染數據表格與下載 - 3.3.4節實作"""
@@ -1231,15 +1231,15 @@ class ResultsDisplayManager:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📥 VA策略數據", use_container_width=True):
+            if st.button("📥 VA策略數據", use_container_width=True, key="download_va_button"):
                 self._download_csv("va_strategy")
         
         with col2:
-            if st.button("📥 DCA策略數據", use_container_width=True):
+            if st.button("📥 DCA策略數據", use_container_width=True, key="download_dca_button"):
                 self._download_csv("dca_strategy")
         
         with col3:
-            if st.button("📥 績效摘要", use_container_width=True):
+            if st.button("📥 績效摘要", use_container_width=True, key="download_summary_button"):
                 self._download_csv("summary")
     
     def _render_va_strategy_table(self):
@@ -1485,7 +1485,7 @@ class ResultsDisplayManager:
             hovermode='x unified'
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="mobile_growth_chart")
     
     def _render_mobile_comparison_table(self):
         """渲染移動端比較表格 - 簡化版"""

@@ -806,7 +806,7 @@ class ParameterManager:
                 margin=dict(t=50, b=50, l=50, r=50)
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="allocation_pie_chart")
             
         except ImportError:
             # 如果沒有plotly，使用簡單的文字顯示
