@@ -607,10 +607,13 @@ class ResultsDisplayManager:
         bond_base_yield = 3.0
         bond_yield_volatility = 0.3  # 殖利率波動 - 增加波動性
         
-        # 設定隨機種子確保可重現性
-        np.random.seed(42)
+        # 改進的隨機數生成機制 - 修正2026年後價格相同問題
+        base_seed = 42
         
         for period in range(total_periods):
+            # 為每期設定不同的隨機種子，確保價格變化多樣性
+            np.random.seed(base_seed + period * 17 + int(start_date.timestamp()) % 1000)
+            
             # 使用正確的投資頻率計算日期
             period_start = calculate_period_start_date(start_date, parameters["investment_frequency"], period + 1)
             period_end = calculate_period_end_date(start_date, parameters["investment_frequency"], period + 1)
@@ -618,25 +621,52 @@ class ResultsDisplayManager:
             date_str = period_start.strftime('%Y-%m-%d')
             end_date_str = period_end.strftime('%Y-%m-%d')
             
-            # 股票價格：有成長趨勢 + 隨機波動
+            # 改進的股票價格生成：增加時間相關性和波動多樣性
             stock_trend = stock_base_price * ((1 + stock_growth_rate) ** period)
-            stock_noise = np.random.normal(0, stock_volatility * stock_trend)
-            spy_price_origin = round(stock_trend + stock_noise, 2)
             
-            # 期末股票價格：再加上期內成長 - 增加波動確保有賣出情況
-            period_growth = np.random.normal(stock_growth_rate, stock_volatility)
+            # 添加長期趨勢變化（模擬市場週期）
+            cycle_factor = 1 + 0.05 * np.sin(2 * np.pi * period / 20)  # 20期為一個週期
+            stock_trend *= cycle_factor
+            
+            # 增強隨機波動，確保每期都有顯著差異
+            volatility_multiplier = 1 + 0.3 * np.sin(2 * np.pi * period / 8)  # 波動率本身也有週期
+            period_volatility = stock_volatility * volatility_multiplier
+            
+            stock_noise = np.random.normal(0, period_volatility * stock_trend)
+            spy_price_origin = round(max(stock_trend + stock_noise, 1.0), 2)  # 確保價格大於0
+            
+            # 期末股票價格：使用改進的成長模型
+            # 添加動量效應（前期表現影響當期）
+            momentum_factor = 1.0
+            if period > 0:
+                # 簡單動量：如果前期成長良好，當期有較高機率繼續成長
+                previous_growth_proxy = (period * stock_growth_rate) % 0.1
+                momentum_factor = 1 + 0.1 * np.tanh(previous_growth_proxy - 0.05)
+            
+            enhanced_growth_rate = stock_growth_rate * momentum_factor
+            period_growth = np.random.normal(enhanced_growth_rate, period_volatility)
             spy_price_end = round(spy_price_origin * (1 + period_growth), 2)
             
-            # 確保有足夠的價格變化來觸發VA策略差異
-            if spy_price_end == spy_price_origin:
-                # 如果價格沒有變化，強制添加一些變化
-                price_change = np.random.choice([-0.05, 0.05])  # ±5%變化
-                spy_price_end = round(spy_price_origin * (1 + price_change), 2)
+            # 強化價格差異保證機制
+            price_difference_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
+            if price_difference_ratio < 0.01:  # 如果價格變化小於1%
+                # 根據期數和日期生成確定性但多變的價格變化
+                deterministic_change = 0.02 + 0.03 * np.sin(period * 1.7) + 0.02 * np.cos(period * 2.3)
+                change_direction = 1 if (period % 3) != 0 else -1  # 大部分時候上漲，偶爾下跌
+                spy_price_end = round(spy_price_origin * (1 + change_direction * abs(deterministic_change)), 2)
             
-            # 債券殖利率：有小幅波動
-            bond_yield_change = np.random.normal(0, bond_yield_volatility)
-            bond_yield_origin = round(bond_base_yield + bond_yield_change, 4)
-            bond_yield_end = round(bond_yield_origin + np.random.normal(0, 0.05), 4)
+            # 改進的債券殖利率生成
+            # 添加利率週期和經濟環境模擬
+            interest_rate_cycle = 0.5 * np.sin(2 * np.pi * period / 30)  # 30期利率週期
+            economic_factor = 1 + 0.2 * np.sin(2 * np.pi * period / 15)  # 經濟週期影響
+            
+            bond_yield_base = bond_base_yield + interest_rate_cycle
+            bond_yield_change = np.random.normal(0, bond_yield_volatility * economic_factor)
+            bond_yield_origin = round(bond_yield_base + bond_yield_change, 4)
+            
+            # 期末債券殖利率
+            yield_momentum = 0.1 * bond_yield_change  # 殖利率有慣性
+            bond_yield_end = round(bond_yield_origin + yield_momentum + np.random.normal(0, 0.05), 4)
             
             # 確保殖利率在合理範圍內
             bond_yield_origin = max(0.5, min(8.0, bond_yield_origin))
