@@ -17,9 +17,9 @@ PARAMETERS = {
     "initial_investment": {
         "component": "slider_with_input",
         "label": "💰 期初投入金額",
-        "range": [0, 10000000],  # 0-1000萬
+        "range": [0, 100000],  # 0-10萬
         "default": 10000,
-        "step": 50000,
+        "step": 5000,
         "format": "currency",
         "precision": 2,  # 符合第1章價格精確度
         "help": "投資策略的起始資金",
@@ -43,9 +43,9 @@ PARAMETERS = {
     "annual_investment": {
         "component": "slider_with_input",
         "label": "💳 年度投入金額",
-        "range": [10000, 500000],  # 1萬-50萬
+        "range": [0, 100000],  # 0-10萬
         "default": 12000,  # 預設1.2萬/年
-        "step": 10000,
+        "step": 5000,
         "format": "currency",
         "help": "每年定期投入的金額（不含期初投入）",
         # 第2章計算邏輯集成
@@ -81,7 +81,7 @@ PARAMETERS = {
     "investment_years": {
         "component": "slider",
         "label": "⏱️ 投資年數",
-        "range": [5, 40],
+        "range": [10, 40],
         "default": 30,
         "step": 1,
         "format": "integer",
@@ -128,7 +128,7 @@ PARAMETERS = {
         "component": "slider",
         "label": "📊 股票比例",
         "range": [0, 100],
-        "default": 80,
+        "default": 100,
         "step": 5,
         "format": "percentage",
         "help": "投資組合中股票的分配比例，債券比例自動計算為 100% - 股票比例",
