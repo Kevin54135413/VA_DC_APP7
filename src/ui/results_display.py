@@ -9,7 +9,7 @@ import numpy as np
 from typing import Dict, Any, Optional, Union, List, Tuple
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 import altair as alt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -417,10 +417,18 @@ class ResultsDisplayManager:
                 current_year = datetime.now().year
                 start_date = datetime(current_year + 1, 1, 1)
             
-            # 計算結束日期
-            frequency_days = {"monthly": 30, "quarterly": 90, "semi_annually": 180, "annually": 365}
-            period_days = frequency_days.get(parameters["investment_frequency"], 90)
-            end_date = start_date + timedelta(days=total_periods * period_days)
+            # 計算結束日期 - 修正：確保獲取足夠的API數據
+            # 修正前：使用固定的期間天數計算，導致API數據範圍不足
+            # frequency_days = {"monthly": 30, "quarterly": 90, "semi_annually": 180, "annually": 365}
+            # period_days = frequency_days.get(parameters["investment_frequency"], 90)
+            # end_date = start_date + timedelta(days=total_periods * period_days)
+            
+            # 修正後：使用實際期間計算確保覆蓋所有期間
+            from src.utils.trading_days import calculate_period_end_date
+            final_period_end = calculate_period_end_date(start_date, parameters["investment_frequency"], total_periods)
+            
+            # 為了確保有足夠的API數據，在最後期間結束日期基礎上再加6個月緩衝
+            end_date = final_period_end + timedelta(days=180)
             
             # 使用交易日調整函數
             trading_days = generate_trading_days(start_date, end_date)
@@ -550,12 +558,41 @@ class ResultsDisplayManager:
                 else:
                     # 第二期開始：優先使用真實API數據，只在無法獲取時才使用相依性機制
                     if is_real_data_available and len(spy_data) > 0:
-                        # 真實數據期間：直接使用API數據
+                        # 真實數據期間：直接使用API數據，但需要檢查日期範圍合理性
                         closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                        spy_price_origin = spy_data.get(closest_spy_date) if closest_spy_date else None
-                        if spy_price_origin is None:
-                            spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
-                        logger.debug(f"期間{period}：使用真實API數據，期初價格{spy_price_origin}")
+                        
+                        # 修正：檢查匹配的日期是否在合理範圍內（30天內）
+                        if closest_spy_date:
+                            date_diff = abs((datetime.strptime(closest_spy_date, '%Y-%m-%d') - period_start).days)
+                            if date_diff <= 30:
+                                # 在合理範圍內，使用API數據
+                                spy_price_origin = spy_data.get(closest_spy_date)
+                                if spy_price_origin is None:
+                                    spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
+                                logger.debug(f"期間{period}：使用真實API數據，期初價格{spy_price_origin}，匹配日期{closest_spy_date}（差異{date_diff}天）")
+                            else:
+                                # 超出合理範圍，表示API數據不足，使用連續性邏輯
+                                if previous_spy_price_end is not None:
+                                    import numpy as np
+                                    np.random.seed(42 + period * 23)
+                                    overnight_change = np.random.normal(0, 0.005)
+                                    overnight_change = max(-0.01, min(0.01, overnight_change))
+                                    spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
+                                    logger.debug(f"期間{period}：API數據超出範圍（差異{date_diff}天），使用連續性邏輯，期初價格{spy_price_origin}")
+                                else:
+                                    spy_price_origin = 400.0
+                                    logger.debug(f"期間{period}：API數據超出範圍且無前期數據，使用預設價格{spy_price_origin}")
+                        else:
+                            # 沒有找到匹配日期，使用連續性邏輯
+                            if previous_spy_price_end is not None:
+                                import numpy as np
+                                np.random.seed(42 + period * 23)
+                                overnight_change = np.random.normal(0, 0.005)
+                                overnight_change = max(-0.01, min(0.01, overnight_change))
+                                spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
+                                logger.debug(f"期間{period}：無API匹配日期，使用連續性邏輯，期初價格{spy_price_origin}")
+                            else:
+                                spy_price_origin = 400.0
                     elif previous_spy_price_end is not None:
                         # 模擬數據期間：基於前期期末價格加入隔夜變動
                         import numpy as np
@@ -572,12 +609,41 @@ class ResultsDisplayManager:
                         spy_price_origin = 400.0
                     
                     if is_real_data_available and len(bond_data) > 0:
-                        # 真實數據期間：直接使用API數據
+                        # 真實數據期間：直接使用API數據，但需要檢查日期範圍合理性
                         closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                        bond_yield_origin = bond_data.get(closest_bond_date) if closest_bond_date else None
-                        if bond_yield_origin is None:
-                            bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
-                        logger.debug(f"期間{period}：使用真實API債券數據，期初殖利率{bond_yield_origin}")
+                        
+                        # 修正：檢查匹配的日期是否在合理範圍內（30天內）
+                        if closest_bond_date:
+                            date_diff = abs((datetime.strptime(closest_bond_date, '%Y-%m-%d') - period_start).days)
+                            if date_diff <= 30:
+                                # 在合理範圍內，使用API數據
+                                bond_yield_origin = bond_data.get(closest_bond_date)
+                                if bond_yield_origin is None:
+                                    bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
+                                logger.debug(f"期間{period}：使用真實API債券數據，期初殖利率{bond_yield_origin}，匹配日期{closest_bond_date}（差異{date_diff}天）")
+                            else:
+                                # 超出合理範圍，使用連續性邏輯
+                                if previous_bond_yield_end is not None:
+                                    import numpy as np
+                                    np.random.seed(42 + period * 29)
+                                    overnight_yield_change = np.random.normal(0, 0.02)
+                                    overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))
+                                    bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
+                                    logger.debug(f"期間{period}：債券API數據超出範圍（差異{date_diff}天），使用連續性邏輯，期初殖利率{bond_yield_origin}")
+                                else:
+                                    bond_yield_origin = 3.0
+                                    logger.debug(f"期間{period}：債券API數據超出範圍且無前期數據，使用預設殖利率{bond_yield_origin}")
+                        else:
+                            # 沒有找到匹配日期，使用連續性邏輯
+                            if previous_bond_yield_end is not None:
+                                import numpy as np
+                                np.random.seed(42 + period * 29)
+                                overnight_yield_change = np.random.normal(0, 0.02)
+                                overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))
+                                bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
+                                logger.debug(f"期間{period}：無債券API匹配日期，使用連續性邏輯，期初殖利率{bond_yield_origin}")
+                            else:
+                                bond_yield_origin = 3.0
                     elif previous_bond_yield_end is not None:
                         # 模擬數據期間：基於前期期末殖利率加入隔夜變動
                         import numpy as np
