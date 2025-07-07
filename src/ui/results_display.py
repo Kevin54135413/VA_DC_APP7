@@ -543,11 +543,11 @@ class ResultsDisplayManager:
                 is_future_period = (period_start > datetime.strptime(latest_spy_date, '%Y-%m-%d') or 
                                   period_start > datetime.strptime(latest_bond_date, '%Y-%m-%d'))
                 
-                # 決定期初價格：第一期使用基準價格，後續期間使用前一期期末價格
-                if period == 0:
-                    # 第一期：使用基準價格
-                    if is_future_period:
-                        # 對於未來期間，基於最後一期歷史價格生成合理的延續價格
+                # 決定期初價格：根據是否有真實數據決定處理方式
+                if is_future_period:
+                    # 未來期間（無真實數據）：使用模擬邏輯
+                    if period == 0 or previous_spy_price_end is None:
+                        # 第一期或前一期數據不存在：基於最後一期歷史價格生成合理的延續價格
                         # 計算從最後一個歷史數據點到當前期間的時間差
                         latest_data_date = datetime.strptime(latest_spy_date, '%Y-%m-%d')
                         time_since_last_data = (period_start - latest_data_date).days / 365.25  # 轉換為年
@@ -588,13 +588,49 @@ class ResultsDisplayManager:
                         yield_change = max(-1.0, min(1.0, yield_change))
                         bond_yield = round(max(0.5, min(8.0, bond_yield_base + yield_change)), 4)
                     else:
-                        # 對於有真實數據的期間，直接使用歷史數據
+                        # 後續未來期間：基於前一期期末價格，添加隔夜跳空機制
+                        
+                        # 股票隔夜跳空：±0.5%到±2%的隨機跳空
+                        overnight_gap_pct = np.random.normal(0, 0.008)  # 平均0%，標準差0.8%的跳空
+                        overnight_gap_pct = np.clip(overnight_gap_pct, -0.02, 0.02)  # 限制在±2%範圍內
+                        spy_price = round(previous_spy_price_end * (1 + overnight_gap_pct), 2)
+                        
+                        # 債券殖利率隔夜跳空：小幅跳空（±0.01%到±0.05%）
+                        bond_overnight_gap = np.random.normal(0, 0.02)  # 平均0%，標準差2bp的跳空
+                        bond_overnight_gap = np.clip(bond_overnight_gap, -0.05, 0.05)  # 限制在±5bp範圍內
+                        bond_yield = round(previous_bond_yield_end + bond_overnight_gap, 4)
+                else:
+                    # 歷史期間（有真實數據）：對於歷史期間，直接使用真實數據作為期初價格
+                    if period == 0:
+                        # 第一期：直接使用歷史數據
                         spy_price = spy_price_base
                         bond_yield = bond_yield_base
-                else:
-                    # 後續期間：使用前一期的期末價格作為期初價格，確保連續性
-                    spy_price = previous_spy_price_end
-                    bond_yield = previous_bond_yield_end
+                    else:
+                        # 後續歷史期間：尋找該期間的真實數據作為期初價格
+                        period_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                        period_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                        
+                        if period_spy_date and period_bond_date:
+                            # 使用該期間最接近的真實數據作為期初價格
+                            spy_price = spy_data.get(period_spy_date, spy_price_base)
+                            bond_yield = bond_data.get(period_bond_date, bond_yield_base)
+                            
+                            # 添加小幅隔夜跳空以避免完全相同（只適用於歷史期間的期初價格）
+                            # 股票小幅跳空
+                            if previous_spy_price_end is not None:
+                                historical_gap_pct = np.random.normal(0, 0.005)  # 更小的跳空：標準差0.5%
+                                historical_gap_pct = np.clip(historical_gap_pct, -0.01, 0.01)  # 限制在±1%範圍內
+                                spy_price = round(spy_price * (1 + historical_gap_pct), 2)
+                            
+                            # 債券小幅跳空
+                            if previous_bond_yield_end is not None:
+                                historical_bond_gap = np.random.normal(0, 0.01)  # 更小的跳空：標準差1bp
+                                historical_bond_gap = np.clip(historical_bond_gap, -0.02, 0.02)  # 限制在±2bp範圍內
+                                bond_yield = round(bond_yield + historical_bond_gap, 4)
+                        else:
+                            # 如果找不到數據，使用基準數據
+                            spy_price = spy_price_base
+                            bond_yield = bond_yield_base
                 
                 # 債券價格計算（簡化公式）
                 bond_price = round(100.0 / (1 + bond_yield/100), 2)
@@ -708,7 +744,7 @@ class ResultsDisplayManager:
             period_seed = (dynamic_seed + period * 43 + hash(date_str)) % 2147483647
             np.random.seed(period_seed)
             
-            # 決定期初價格：第一期使用基準價格，後續期間使用前一期期末價格
+            # 決定期初價格：第一期使用基準價格，後續期間使用前一期期末價格並添加隔夜跳空
             if period == 0:
                 # 第一期：計算基礎價格
                 stock_trend = stock_base_price * ((1 + stock_growth_rate) ** period)
@@ -719,9 +755,17 @@ class ResultsDisplayManager:
                 bond_yield_change = np.random.normal(0, bond_yield_volatility * 0.5)  # 降低初始波動
                 bond_yield_origin = round(bond_base_yield + bond_yield_change, 4)
             else:
-                # 後續期間：使用前一期的期末價格作為期初價格，確保連續性
-                spy_price_origin = previous_spy_price_end
-                bond_yield_origin = previous_bond_yield_end
+                # 後續期間：基於前一期期末價格，添加隔夜跳空機制
+                
+                # 股票隔夜跳空：±0.5%到±2%的隨機跳空
+                overnight_gap_pct = np.random.normal(0, 0.008)  # 平均0%，標準差0.8%的跳空
+                overnight_gap_pct = np.clip(overnight_gap_pct, -0.02, 0.02)  # 限制在±2%範圍內
+                spy_price_origin = round(previous_spy_price_end * (1 + overnight_gap_pct), 2)
+                
+                # 債券殖利率隔夜跳空：小幅跳空（±0.01%到±0.05%）
+                bond_overnight_gap = np.random.normal(0, 0.02)  # 平均0%，標準差2bp的跳空
+                bond_overnight_gap = np.clip(bond_overnight_gap, -0.05, 0.05)  # 限制在±5bp範圍內
+                bond_yield_origin = round(previous_bond_yield_end + bond_overnight_gap, 4)
             
             # 期末價格：基於期初價格的合理變化
             period_growth = np.random.normal(stock_growth_rate, stock_volatility * 0.3)  # 降低期內波動
