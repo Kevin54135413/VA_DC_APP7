@@ -588,7 +588,7 @@ def _display_growth_chart(results: Dict[str, Any]):
             height=500
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="main_app_growth_chart")
     else:
         # 簡化版本：使用Streamlit內建圖表
         chart_data = pd.DataFrame({
