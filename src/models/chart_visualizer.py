@@ -184,35 +184,69 @@ def create_bar_chart(data_df: pd.DataFrame,
             logger.error(f"缺少必要欄位: {x_field}, {y_field}")
             return alt.Chart().mark_text(text=f"Missing fields: {x_field}, {y_field}")
         
-        # 創建基礎圖表 - 修正顏色可讀性
-        base_chart = alt.Chart(data_df).mark_bar(
-            opacity=0.8,
-            stroke='white',
-            strokeWidth=1
-        ).encode(
-            x=alt.X(f"{x_field}:Q", title=x_field.replace("_", " ").title()),
-            y=alt.Y(f"{y_field}:Q", title=y_field.replace("_", " ").title()),
-            color=alt.Color(f"{color_field}:N", scale=alt.Scale(range=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])) if color_field and color_field in data_df.columns else alt.value("#4c78a8"),
-            tooltip=[x_field, y_field] + ([color_field] if color_field and color_field in data_df.columns else [])
-        ).properties(
-            title=title,
-            width=CHART_GLOBAL_CONFIG["width"], 
-            height=CHART_GLOBAL_CONFIG["height"]
-        )
+        # 判斷是否需要水平柱狀圖（當Y軸是分類變數時）
+        if y_field == "Strategy" or any(isinstance(val, str) for val in data_df[y_field].iloc[:min(5, len(data_df))]):
+            # 水平柱狀圖 - 適用於策略比較
+            base_chart = alt.Chart(data_df).mark_bar(
+                opacity=0.8,
+                stroke='white',
+                strokeWidth=1
+            ).encode(
+                x=alt.X(f"{x_field}:Q", title=x_field.replace("_", " ").title()),
+                y=alt.Y(f"{y_field}:N", title=y_field.replace("_", " ").title(), sort='-x'),
+                color=alt.Color(f"{color_field}:N", scale=alt.Scale(range=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])) if color_field and color_field in data_df.columns else alt.value("#4c78a8"),
+                tooltip=[x_field, y_field] + ([color_field] if color_field and color_field in data_df.columns else [])
+            ).properties(
+                title=title,
+                width=CHART_GLOBAL_CONFIG["width"], 
+                height=CHART_GLOBAL_CONFIG["height"]
+            )
+        else:
+            # 垂直柱狀圖 - 傳統柱狀圖
+            base_chart = alt.Chart(data_df).mark_bar(
+                opacity=0.8,
+                stroke='white',
+                strokeWidth=1
+            ).encode(
+                x=alt.X(f"{x_field}:Q", title=x_field.replace("_", " ").title()),
+                y=alt.Y(f"{y_field}:Q", title=y_field.replace("_", " ").title()),
+                color=alt.Color(f"{color_field}:N", scale=alt.Scale(range=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])) if color_field and color_field in data_df.columns else alt.value("#4c78a8"),
+                tooltip=[x_field, y_field] + ([color_field] if color_field and color_field in data_df.columns else [])
+            ).properties(
+                title=title,
+                width=CHART_GLOBAL_CONFIG["width"], 
+                height=CHART_GLOBAL_CONFIG["height"]
+            )
         
-        # 添加數值標籤 - 確保文字可見性
-        text_chart = alt.Chart(data_df).mark_text(
-            align='center',
-            baseline='middle',
-            dy=-10,  # 文字位置稍微上移
-            fontSize=12,
-            fontWeight='bold',
-            color='black'  # 強制使用黑色文字確保可見
-        ).encode(
-            x=alt.X(f"{x_field}:Q"),
-            y=alt.Y(f"{y_field}:Q"),
-            text=alt.Text(f"{y_field}:Q", format='.1f')
-        )
+        # 添加數值標籤 - 根據圖表類型調整位置
+        if y_field == "Strategy" or any(isinstance(val, str) for val in data_df[y_field].iloc[:min(5, len(data_df))]):
+            # 水平柱狀圖的文字標籤
+            text_chart = alt.Chart(data_df).mark_text(
+                align='left',
+                baseline='middle',
+                dx=5,  # 文字位置稍微右移
+                fontSize=12,
+                fontWeight='bold',
+                color='black'
+            ).encode(
+                x=alt.X(f"{x_field}:Q"),
+                y=alt.Y(f"{y_field}:N", sort='-x'),
+                text=alt.Text(f"{x_field}:Q", format='.1f')
+            )
+        else:
+            # 垂直柱狀圖的文字標籤
+            text_chart = alt.Chart(data_df).mark_text(
+                align='center',
+                baseline='middle',
+                dy=-10,  # 文字位置稍微上移
+                fontSize=12,
+                fontWeight='bold',
+                color='black'
+            ).encode(
+                x=alt.X(f"{x_field}:Q"),
+                y=alt.Y(f"{y_field}:Q"),
+                text=alt.Text(f"{y_field}:Q", format='.1f')
+            )
         
         # 組合圖表和文字標籤
         chart = base_chart + text_chart

@@ -499,8 +499,25 @@ def detect_device_and_layout():
     if 'responsive_manager' not in st.session_state:
         st.session_state.responsive_manager = ResponsiveDesignManager()
     
+    # 創建結果顯示管理器
+    if 'results_manager' not in st.session_state:
+        st.session_state.results_manager = ResultsDisplayManager()
+    
     # 檢測設備並調整布局
     st.session_state.responsive_manager.detect_device_and_layout()
+    
+    # 收集用戶參數並顯示結果
+    user_params = collect_user_parameters()
+    if user_params:
+        # 執行計算流程
+        calculation_results = simplified_calculation_flow(user_params)
+        
+        # 將計算結果傳遞給ResultsDisplayManager
+        if calculation_results:
+            st.session_state.results_manager.calculation_results = calculation_results
+        
+        # 顯示結果
+        st.session_state.results_manager.render_complete_results_display(user_params)
 
 def collect_user_parameters():
     """
@@ -579,13 +596,19 @@ def simplified_calculation_flow(user_params):
             progress_bar.progress(100)
             
             # 計算摘要指標
-            summary_metrics = calculate_summary_metrics(va_results, dca_results)
+            summary_df = calculate_summary_metrics(
+                va_rebalance_df=va_results,
+                dca_df=dca_results,
+                initial_investment=user_params.get('initial_investment', 10000),
+                periods_per_year=4,  # 季度頻率
+                risk_free_rate=2.0
+            )
             
-            # 整理最終結果
+            # 整理最終結果 - 符合ResultsDisplayManager期望的格式
             calculation_results = {
-                'va_results': va_results,
-                'dca_results': dca_results,
-                'summary_metrics': summary_metrics,
+                'va_rebalance_df': va_results,
+                'dca_df': dca_results,
+                'summary_df': summary_df,
                 'market_data': market_data,
                 'parameters': user_params,
                 'calculation_time': datetime.now()

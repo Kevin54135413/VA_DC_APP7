@@ -215,15 +215,15 @@ class ResultsDisplayManager:
             # 清除觸發標記
             st.session_state.trigger_calculation = False
             
-            # 執行策略計算
-            self._execute_strategy_calculations(parameters)
-            
-            # 記錄計算時間
-            from datetime import datetime
-            st.session_state.last_calculation_time = datetime.now()
-            
-            # 顯示計算完成信息
-            st.success("✅ 計算完成！以下是您的投資策略分析結果：")
+        # 執行策略計算
+        self._execute_strategy_calculations(parameters)
+        
+        # 記錄計算時間
+        from datetime import datetime
+        st.session_state.last_calculation_time = datetime.now()
+        
+        # 顯示計算完成信息
+        st.success("✅ 計算完成！以下是您的投資策略分析結果：")
         
         # 從session_state讀取計算結果（如果有的話）
         if not self.calculation_results and st.session_state.get('calculation_results'):
@@ -661,10 +661,10 @@ class ResultsDisplayManager:
                     'Bond_Price_End': bond_price_end
                 })
             
-            # 創建DataFrame
+            # 創建market_data DataFrame
             market_data = pd.DataFrame(market_data_list)
             
-            # 顯示最終數據源狀態
+            # 顯示結果統計
             if len(spy_data) > 0 or len(bond_data) > 0:
                 data_summary = []
                 if len(spy_data) > 0:
@@ -972,8 +972,8 @@ class ResultsDisplayManager:
             # 核心指標
             if strategy_data:
                 # 使用垂直排列的指標，避免嵌套列
-                st.metric("最終價值", f"${strategy_data['final_value']:,.0f}")
-                st.metric("年化報酬", f"{strategy_data['annualized_return']:.2f}%")
+                    st.metric("最終價值", f"${strategy_data['final_value']:,.0f}")
+                    st.metric("年化報酬", f"{strategy_data['annualized_return']:.2f}%")
             
             # 適合對象
             st.markdown(f"**👥 適合對象：** {card_config['content']['suitability']}")
@@ -1074,11 +1074,12 @@ class ResultsDisplayManager:
         
         summary_df = self.calculation_results["summary_df"]
         
-        # 使用第2章第2.3節的Altair圖表系統
+        # 使用第2章第2.3節的Altair圖表系統 - 修正參數順序
         chart = create_bar_chart(
             data_df=summary_df,
             x_field="Annualized_Return",
             y_field="Strategy",
+            color_field="Strategy",
             title="年化報酬率比較"
         )
         
