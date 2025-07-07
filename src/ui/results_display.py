@@ -540,17 +540,14 @@ class ResultsDisplayManager:
                                   period_start > datetime.strptime(latest_bond_date, '%Y-%m-%d'))
                 
                 if is_future_period:
-                    # 對於未來期間，需要基於歷史數據生成持續變化的價格
+                    # 對於未來期間，基於最後一期歷史價格生成合理的延續價格
                     # 計算從最後一個歷史數據點到當前期間的時間差
                     latest_data_date = datetime.strptime(latest_spy_date, '%Y-%m-%d')
                     time_since_last_data = (period_start - latest_data_date).days / 365.25  # 轉換為年
                     
-                    # 使用動態時間差確保每期都有不同的價格
-                    periods_from_start = period + 1  # 期數從1開始
-                    
-                    # 使用幾何布朗運動延續價格，確保每期價格都不同
-                    annual_growth = 0.08  # 8%年化成長
-                    annual_volatility = 0.15  # 15%年化波動
+                    # 使用更保守的參數確保價格在合理範圍內
+                    annual_growth = 0.06  # 降低至6%年化成長，更接近長期市場平均
+                    annual_volatility = 0.12  # 降低至12%年化波動
                     
                     # 計算該期間對應的時間增量
                     time_delta = 1.0  # 假設每期為1年
@@ -559,16 +556,29 @@ class ResultsDisplayManager:
                     elif parameters["investment_frequency"] == "Monthly":
                         time_delta = 1/12
                     
-                    # 為每期生成不同的起始價格 - 基於期間序號確保差異
-                    price_drift = annual_growth * time_delta * periods_from_start
-                    price_volatility = annual_volatility * np.sqrt(time_delta) * (1 + 0.1 * periods_from_start)
-                    price_change = np.random.normal(price_drift, price_volatility)
-                    spy_price = round(spy_price_base * np.exp(price_change), 2)
+                    # 基於實際經過時間計算價格變化，而非累積期間數
+                    # 這確保價格變化更貼近現實
+                    actual_time_elapsed = time_since_last_data + (period - len([d for d in spy_data.keys() if datetime.strptime(d, '%Y-%m-%d') <= period_start]) + 1) * time_delta
                     
-                    # 債券殖利率：基於歷史殖利率，每期都有不同的起始殖利率
-                    yield_drift = 0.0  # 殖利率長期平均不變
-                    yield_volatility = 0.3 * (1 + 0.05 * periods_from_start)  # 隨時間增加波動
-                    yield_change = np.random.normal(yield_drift, yield_volatility)
+                    # 使用更溫和的隨機遊走，避免極端值
+                    price_drift = annual_growth * time_delta  # 每期固定成長，不累積
+                    price_volatility = annual_volatility * np.sqrt(time_delta)  # 標準波動率
+                    
+                    # 添加期間特定的隨機變化，但限制在合理範圍內
+                    period_random_factor = np.random.normal(0, 0.05)  # ±5%的期間隨機變化
+                    price_change = np.random.normal(price_drift + period_random_factor, price_volatility)
+                    
+                    # 限制價格變化在合理範圍內（-30%到+50%）
+                    price_change = max(-0.3, min(0.5, price_change))
+                    
+                    spy_price = round(spy_price_base * (1 + price_change), 2)
+                    
+                    # 債券殖利率：基於歷史殖利率，使用更保守的變化
+                    yield_volatility = 0.15  # 降低債券殖利率波動
+                    yield_change = np.random.normal(0, yield_volatility)
+                    
+                    # 限制殖利率變化在±1%範圍內
+                    yield_change = max(-1.0, min(1.0, yield_change))
                     bond_yield = round(max(0.5, min(8.0, bond_yield_base + yield_change)), 4)
                 else:
                     # 對於有真實數據的期間，直接使用歷史數據
