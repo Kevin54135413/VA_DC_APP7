@@ -525,10 +525,9 @@ def detect_device_and_layout():
                 st.session_state.calculation_results = calculation_results
                 st.session_state.last_calculation_params = user_params.copy()
         
-        # 顯示結果（只有在有計算結果時才顯示）
+        # 確保結果管理器有最新的計算結果（ResponsiveDesignManager會處理顯示）
         if hasattr(st.session_state, 'calculation_results') and st.session_state.calculation_results:
             st.session_state.results_manager.calculation_results = st.session_state.calculation_results
-            st.session_state.results_manager.render_complete_results_display(user_params)
 
 def collect_user_parameters():
     """
