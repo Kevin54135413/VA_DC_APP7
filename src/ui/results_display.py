@@ -504,11 +504,11 @@ class ResultsDisplayManager:
                 if len(spy_data) > 0:
                     # 尋找最接近的日期的真實數據
                     closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                    spy_price = spy_data.get(closest_spy_date) if closest_spy_date else None
-                    if spy_price is None:
+                    spy_price_base = spy_data.get(closest_spy_date) if closest_spy_date else None
+                    if spy_price_base is None:
                         # 如果找不到合適的數據點，使用最新的可用數據
-                        spy_price = list(spy_data.values())[-1] if spy_data else None
-                        if spy_price is None:
+                        spy_price_base = list(spy_data.values())[-1] if spy_data else None
+                        if spy_price_base is None:
                             raise ValueError(f"SPY數據不足：期間{period}無可用數據")
                 else:
                     raise ValueError(f"SPY數據完全缺失：無法生成期間{period}的數據")
@@ -516,21 +516,67 @@ class ResultsDisplayManager:
                 if len(bond_data) > 0:
                     # 尋找最接近的日期的真實數據
                     closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                    bond_yield = bond_data.get(closest_bond_date) if closest_bond_date else None
-                    if bond_yield is None:
+                    bond_yield_base = bond_data.get(closest_bond_date) if closest_bond_date else None
+                    if bond_yield_base is None:
                         # 如果找不到合適的數據點，使用最新的可用數據
-                        bond_yield = list(bond_data.values())[-1] if bond_data else None
-                        if bond_yield is None:
+                        bond_yield_base = list(bond_data.values())[-1] if bond_data else None
+                        if bond_yield_base is None:
                             raise ValueError(f"債券數據不足：期間{period}無可用數據")
                 else:
                     raise ValueError(f"債券數據完全缺失：無法生成期間{period}的數據")
                 
-                # 債券價格計算（簡化公式）
-                bond_price = round(100.0 / (1 + bond_yield/100), 2)
-                
                 # 生成更真實的市場波動，確保VA策略類型差異能體現
                 import numpy as np
-                np.random.seed(42 + period)  # 使用期數作為種子確保可重現性
+                # 使用動態隨機種子確保每期都有不同的隨機變化
+                import time
+                dynamic_seed = int(time.time() * 1000000) % 2147483647
+                dynamic_seed ^= (period * 37 + hash(date_str)) % 2147483647
+                np.random.seed(dynamic_seed)
+                
+                # 檢查是否為未來期間（無真實數據的期間）
+                latest_spy_date = max(spy_data.keys(), key=lambda x: datetime.strptime(x, '%Y-%m-%d'))
+                latest_bond_date = max(bond_data.keys(), key=lambda x: datetime.strptime(x, '%Y-%m-%d'))
+                is_future_period = (period_start > datetime.strptime(latest_spy_date, '%Y-%m-%d') or 
+                                  period_start > datetime.strptime(latest_bond_date, '%Y-%m-%d'))
+                
+                if is_future_period:
+                    # 對於未來期間，需要基於歷史數據生成持續變化的價格
+                    # 計算從最後一個歷史數據點到當前期間的時間差
+                    latest_data_date = datetime.strptime(latest_spy_date, '%Y-%m-%d')
+                    time_since_last_data = (period_start - latest_data_date).days / 365.25  # 轉換為年
+                    
+                    # 使用動態時間差確保每期都有不同的價格
+                    periods_from_start = period + 1  # 期數從1開始
+                    
+                    # 使用幾何布朗運動延續價格，確保每期價格都不同
+                    annual_growth = 0.08  # 8%年化成長
+                    annual_volatility = 0.15  # 15%年化波動
+                    
+                    # 計算該期間對應的時間增量
+                    time_delta = 1.0  # 假設每期為1年
+                    if parameters["investment_frequency"] == "Quarterly":
+                        time_delta = 0.25
+                    elif parameters["investment_frequency"] == "Monthly":
+                        time_delta = 1/12
+                    
+                    # 為每期生成不同的起始價格 - 基於期間序號確保差異
+                    price_drift = annual_growth * time_delta * periods_from_start
+                    price_volatility = annual_volatility * np.sqrt(time_delta) * (1 + 0.1 * periods_from_start)
+                    price_change = np.random.normal(price_drift, price_volatility)
+                    spy_price = round(spy_price_base * np.exp(price_change), 2)
+                    
+                    # 債券殖利率：基於歷史殖利率，每期都有不同的起始殖利率
+                    yield_drift = 0.0  # 殖利率長期平均不變
+                    yield_volatility = 0.3 * (1 + 0.05 * periods_from_start)  # 隨時間增加波動
+                    yield_change = np.random.normal(yield_drift, yield_volatility)
+                    bond_yield = round(max(0.5, min(8.0, bond_yield_base + yield_change)), 4)
+                else:
+                    # 對於有真實數據的期間，直接使用歷史數據
+                    spy_price = spy_price_base
+                    bond_yield = bond_yield_base
+                
+                # 債券價格計算（簡化公式）
+                bond_price = round(100.0 / (1 + bond_yield/100), 2)
                 
                 # 股票價格：有成長趨勢但也有下跌可能
                 stock_return = np.random.normal(0.02, 0.15)  # 平均2%成長，15%波動
@@ -615,8 +661,10 @@ class ResultsDisplayManager:
         bond_base_yield = 3.0
         bond_yield_volatility = 0.3  # 殖利率波動 - 增加波動性
         
-        # 設定隨機種子確保可重現性
-        np.random.seed(42)
+        # 使用動態隨機種子確保每次調用都產生不同的隨機序列
+        import time
+        dynamic_seed = int(time.time() * 1000000) % 2147483647
+        np.random.seed(dynamic_seed)
         
         for period in range(total_periods):
             # 使用正確的投資頻率計算日期
@@ -625,6 +673,10 @@ class ResultsDisplayManager:
             
             date_str = period_start.strftime('%Y-%m-%d')
             end_date_str = period_end.strftime('%Y-%m-%d')
+            
+            # 為每期設定不同的隨機種子，確保價格持續變化
+            period_seed = (dynamic_seed + period * 43 + hash(date_str)) % 2147483647
+            np.random.seed(period_seed)
             
             # 股票價格：有成長趨勢 + 隨機波動
             stock_trend = stock_base_price * ((1 + stock_growth_rate) ** period)
