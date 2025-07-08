@@ -2791,7 +2791,7 @@ def create_strategy_comparison_chart(va_rebalance_df, va_nosell_df, dca_df, char
 
 def create_investment_flow_chart(va_df):
     """
-    創建VA策略投資流圖表（顯示買入/賣出）
+    創建VA與DCA策略投資流圖表（顯示買入/賣出）
     
     參數:
     - va_df: VA策略數據DataFrame

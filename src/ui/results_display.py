@@ -1367,18 +1367,39 @@ class ResultsDisplayManager:
         with col2:
             st.markdown("##### 📉 回撤分析")
             try:
-                # 使用VA策略進行回撤分析
+                # 創建VA和DCA策略的回撤分析圖表
                 va_df = self.calculation_results["va_rebalance_df"]
-                drawdown_chart = create_drawdown_chart(va_df, "VA策略")
-                st.altair_chart(drawdown_chart, use_container_width=True)
+                dca_df = self.calculation_results["dca_df"]
+                
+                # 創建VA策略回撤圖表
+                va_drawdown_chart = create_drawdown_chart(va_df, "VA策略")
+                
+                # 創建DCA策略回撤圖表
+                dca_drawdown_chart = create_drawdown_chart(dca_df, "DCA策略")
+                
+                # 垂直合併兩個圖表
+                combined_drawdown_chart = alt.vconcat(
+                    va_drawdown_chart.properties(title="VA策略 回撤分析"),
+                    dca_drawdown_chart.properties(title="DCA策略 回撤分析")
+                ).resolve_scale(x='independent', y='independent')
+                
+                st.altair_chart(combined_drawdown_chart, use_container_width=True)
                 
             except Exception as e:
                 st.error(f"回撤分析圖表錯誤: {str(e)}")
                 # 降級到簡單統計
                 va_df = self.calculation_results["va_rebalance_df"]
-                max_drawdown = va_df["Cum_Value"].expanding().max()
-                current_drawdown = (va_df["Cum_Value"] - max_drawdown) / max_drawdown
-                st.write(f"最大回撤: {current_drawdown.min():.2%}")
+                dca_df = self.calculation_results["dca_df"]
+                
+                # VA策略回撤統計
+                va_max_drawdown = va_df["Cum_Value"].expanding().max()
+                va_current_drawdown = (va_df["Cum_Value"] - va_max_drawdown) / va_max_drawdown
+                st.write(f"VA策略最大回撤: {va_current_drawdown.min():.2%}")
+                
+                # DCA策略回撤統計
+                dca_max_drawdown = dca_df["Cum_Value"].expanding().max()
+                dca_current_drawdown = (dca_df["Cum_Value"] - dca_max_drawdown) / dca_max_drawdown
+                st.write(f"DCA策略最大回撤: {dca_current_drawdown.min():.2%}")
         
         # 添加風險收益散點圖
         st.markdown("##### 📊 風險收益分析")
