@@ -1807,11 +1807,110 @@ def calculate_bond_price(yield_rate, face_value=100, time_to_maturity=1):
 
 #### 2.1.5 績效指標計算模組
 
-**年化報酬率計算**
+**時間加權報酬率計算** (主要投資報酬率指標)
 ```python
+def calculate_time_weighted_return(period_returns: List[float], periods_per_year: int) -> float:
+    """
+    計算時間加權報酬率 (Time-Weighted Return, TWR)
+    
+    解決VA Rebalance策略中累積投入<0時投報率計算問題的專業方案
+    時間加權報酬率不受現金流進出影響，反映真實的投資策略績效
+    
+    參數:
+    - period_returns: 各期報酬率列表 (百分比形式)
+    - periods_per_year: 每年期數
+    
+    返回:
+    - annualized_twr: 年化時間加權報酬率 (%)
+    
+    財務金融理論基礎:
+    TWR = [(1+R1) × (1+R2) × ... × (1+Rn)]^(1/年數) - 1
+    此方法是投資組合績效評估的國際標準，消除了現金流時機的影響
+    """
+    if not period_returns or len(period_returns) == 0:
+        return 0.0
+    
+    if periods_per_year <= 0:
+        raise ValueError("每年期數必須大於0")
+    
+    # 過濾有效的報酬率數據（移除NaN和第一期的0值）
+    valid_returns = [r for r in period_returns if pd.notna(r) and r != 0]
+    
+    if len(valid_returns) == 0:
+        return 0.0
+    
+    # 將百分比轉為小數形式
+    returns_decimal = [r / 100 for r in valid_returns]
+    
+    # 複合計算：將各期報酬率相乘
+    compound_return = 1.0
+    for r in returns_decimal:
+        compound_return *= (1 + r)
+    
+    # 計算投資年數
+    total_periods = len(returns_decimal)
+    years = total_periods / periods_per_year
+    
+    if years > 0 and compound_return > 0:
+        # 年化處理
+        annualized_twr = (compound_return ** (1 / years)) - 1
+        return annualized_twr * 100
+    
+    return 0.0
+
+
+def calculate_enhanced_annualized_return(final_value: float, total_investment: float, 
+                                       investment_years: float, period_returns: List[float] = None,
+                                       periods_per_year: int = 4) -> float:
+    """
+    增強的年化報酬率計算（智能選擇計算方法）
+    
+    根據累積投入情況自動選擇最適當的計算方法：
+    - 累積投入>0：使用傳統CAGR
+    - 累積投入≤0：使用時間加權報酬率作為主要指標
+    
+    參數:
+    - final_value: 期末總資產價值
+    - total_investment: 累計總投入金額 (可能為負)
+    - investment_years: 投資年數
+    - period_returns: 各期報酬率列表 (可選)
+    - periods_per_year: 每年期數
+    
+    返回:
+    - recommended_return: 推薦的年化報酬率 (%)
+    """
+    if final_value < 0:
+        raise ValueError("資產價值必須非負")
+    
+    if investment_years <= 0:
+        raise ValueError("投資年數必須大於0")
+    
+    try:
+        # 情況1：累積投入>0，使用傳統CAGR
+        if total_investment > 0:
+            return ((final_value / total_investment) ** (1 / investment_years) - 1) * 100
+        
+        # 情況2：累積投入≤0，使用時間加權報酬率
+        elif period_returns and len(period_returns) > 0:
+            twr = calculate_time_weighted_return(period_returns, periods_per_year)
+            logger.info(f"累積投入≤0，使用時間加權報酬率: {twr:.2f}%")
+            return twr
+        
+        # 情況3：無有效數據，返回0
+        else:
+            logger.warning("無足夠數據計算年化報酬率，返回0")
+            return 0.0
+            
+    except Exception as e:
+        logger.error(f"增強年化報酬率計算失敗: {e}")
+        return 0.0
+
+
 def calculate_annualized_return(final_value, total_investment, investment_years):
     """
-    計算年化報酬率
+    傳統年化報酬率計算（向後兼容）
+    
+    注意：此函數保留作為向後兼容，新程式碼建議使用 calculate_enhanced_annualized_return
     
     參數:
     - final_value: 期末總資產價值
@@ -2482,15 +2581,26 @@ def calculate_derived_metrics(df, initial_investment, periods_per_year):
     enhanced_df["Cumulative_Return"] = ((enhanced_df["Cum_Value"] / 
                                        enhanced_df["Cum_Inv"]) - 1) * 100
     
-    # 計算年化報酬率
-    enhanced_df["Annualized_Return"] = enhanced_df.apply(
-        lambda row: calculate_annualized_return(
-            row["Cum_Value"], 
-            row["Cum_Inv"], 
-            (row["Period"] + 1) / periods_per_year
-        ) if row["Period"] > 0 else 0, 
-        axis=1
-    )
+    # 計算年化報酬率 - 使用增強版本（自動處理累積投入≤0的情況）
+    enhanced_df["Annualized_Return"] = 0.0
+    
+    for i in range(len(enhanced_df)):
+        period = enhanced_df.loc[i, "Period"]
+        cum_value = enhanced_df.loc[i, "Cum_Value"]
+        cum_inv = enhanced_df.loc[i, "Cum_Inv"]
+        
+        if period > 0 and pd.notna(cum_value) and pd.notna(cum_inv):
+            investment_years = (period + 1) / periods_per_year
+            if investment_years > 0:
+                # 獲取到目前為止的期間報酬率用於TWR計算
+                period_returns = enhanced_df.loc[:i, "Period_Return"].dropna().tolist()
+                
+                # 使用增強年化報酬率計算（自動處理累積投入≤0的情況）
+                ann_return = calculate_enhanced_annualized_return(
+                    cum_value, cum_inv, investment_years, 
+                    period_returns, periods_per_year
+                )
+                enhanced_df.loc[i, "Annualized_Return"] = ann_return
     
     return enhanced_df
 
@@ -2522,13 +2632,38 @@ def calculate_summary_metrics(va_rebalance_df, va_nosell_df, dca_df,
             # 基本指標
             final_value = final_row["Cum_Value"]
             total_investment = final_row["Cum_Inv"]
-            total_return = ((final_value / total_investment) - 1) * 100
             
-            # 年化報酬率
+            # 總報酬率計算 - 處理累積投入≤0的情況
+            if total_investment > 0:
+                total_return = ((final_value / total_investment) - 1) * 100
+            else:
+                # 累積投入≤0：使用最終期的累積報酬率或TWR
+                if "Cumulative_Return" in final_row:
+                    total_return = final_row["Cumulative_Return"]
+                else:
+                    period_returns = strategy_df["Period_Return"].dropna().tolist() if "Period_Return" in strategy_df.columns else []
+                    if period_returns:
+                        # 計算總複合報酬率（非年化）
+                        compound_return = 1.0
+                        for r in [r/100 for r in period_returns if r != 0]:
+                            compound_return *= (1 + r)
+                        total_return = (compound_return - 1) * 100
+                    else:
+                        total_return = 0
+            
+            # 年化報酬率 - 使用增強版本處理累積投入≤0的情況
             investment_years = len(strategy_df) / periods_per_year
-            annualized_return = calculate_annualized_return(
-                final_value, total_investment, investment_years
-            )
+            if investment_years > 0:
+                # 獲取期間報酬率用於TWR計算
+                period_returns = strategy_df["Period_Return"].dropna().tolist() if "Period_Return" in strategy_df.columns else []
+                
+                # 使用增強年化報酬率計算
+                annualized_return = calculate_enhanced_annualized_return(
+                    final_value, total_investment, investment_years,
+                    period_returns, periods_per_year
+                )
+            else:
+                annualized_return = 0
             
             # IRR計算
             cash_flows = build_cash_flows_for_strategy(strategy_df, strategy_name)
@@ -2578,6 +2713,209 @@ def build_cash_flows_for_strategy(strategy_df, strategy_name):
             initial_investment, fixed_investment, periods, final_value
         )
 ```
+
+#### 2.2.6 時間加權報酬率計算模組
+def calculate_time_weighted_return(period_returns: List[float], periods_per_year: int) -> float:
+    """
+    計算時間加權報酬率 (Time-Weighted Return, TWR)
+    
+    解決VA Rebalance策略中累積投入<0時投報率計算問題的專業方案
+    時間加權報酬率不受現金流進出影響，反映真實的投資策略績效
+    
+    Args:
+        period_returns: 各期報酬率列表 (百分比形式)
+        periods_per_year: 每年期數
+    
+    Returns:
+        float: 年化時間加權報酬率 (%)
+    
+    財務金融理論基礎:
+    TWR = [(1+R1) × (1+R2) × ... × (1+Rn)]^(1/年數) - 1
+    此方法是投資組合績效評估的國際標準，消除了現金流時機的影響
+    """
+    if not period_returns or len(period_returns) == 0:
+        return 0.0
+    
+    if periods_per_year <= 0:
+        raise ValueError("每年期數必須大於0")
+    
+    # 過濾有效的報酬率數據
+    valid_returns = [r for r in period_returns if pd.notna(r)]
+    
+    if len(valid_returns) == 0:
+        return 0.0
+    
+    # 將百分比轉為小數形式
+    returns_decimal = [r / 100 for r in valid_returns]
+    
+    # 複合計算：將各期報酬率相乘
+    compound_return = 1.0
+    for r in returns_decimal:
+        compound_return *= (1 + r)
+    
+    # 計算投資年數
+    total_periods = len(returns_decimal)
+    years = total_periods / periods_per_year
+    
+    if years > 0 and compound_return > 0:
+        # 年化處理
+        annualized_twr = (compound_return ** (1 / years)) - 1
+        return annualized_twr * 100
+    
+    return 0.0
+
+def calculate_va_enhanced_return(strategy_df: pd.DataFrame, periods_per_year: int) -> Dict[str, float]:
+    """
+    計算VA策略的增強投報率指標
+    
+    專門解決累積投入<0時的投報率計算問題
+    提供多種財務金融專業指標：
+    1. 時間加權報酬率 (TWR) - 主要指標
+    2. 修正IRR - 基於完整現金流
+    3. 幾何平均報酬率 - 複合成長率
+    
+    Args:
+        strategy_df: 策略計算結果DataFrame
+        periods_per_year: 每年期數
+    
+    Returns:
+        Dict: 包含多種投報率指標的字典
+    """
+    if strategy_df is None or len(strategy_df) == 0:
+        return {
+            'time_weighted_return': 0.0,
+            'modified_irr': 0.0,
+            'geometric_mean_return': 0.0,
+            'calculation_method': 'insufficient_data'
+        }
+    
+    try:
+        # 1. 時間加權報酬率 (主要指標)
+        if "Period_Return" in strategy_df.columns:
+            period_returns = strategy_df["Period_Return"].dropna().tolist()
+            twr = calculate_time_weighted_return(period_returns, periods_per_year)
+        else:
+            twr = 0.0
+        
+        # 2. 修正IRR計算
+        modified_irr = 0.0
+        try:
+            if "Invested" in strategy_df.columns and "Cum_Value" in strategy_df.columns:
+                investments = strategy_df["Invested"].fillna(0).tolist()
+                final_value = strategy_df.iloc[-1]["Cum_Value"]
+                
+                # 建構現金流：所有投入為負，最終價值為正
+                cash_flows = [-inv for inv in investments]
+                cash_flows.append(final_value)
+                
+                irr_result = calculate_irr(cash_flows)
+                if irr_result is not None:
+                    modified_irr = irr_result
+        except Exception as e:
+            logger.warning(f"修正IRR計算失敗: {e}")
+        
+        # 3. 幾何平均報酬率
+        geometric_mean = twr  # 與TWR相同的概念
+        
+        # 4. 判斷主要使用的計算方法
+        final_cum_inv = strategy_df.iloc[-1].get("Cum_Inv", 0) if len(strategy_df) > 0 else 0
+        
+        if final_cum_inv <= 0:
+            # 累積投入≤0的情況，使用TWR作為主要指標
+            calculation_method = 'time_weighted_return_preferred'
+            primary_return = twr
+        else:
+            # 累積投入>0的情況，可使用傳統方法
+            calculation_method = 'traditional_with_twr_validation'
+            primary_return = twr
+        
+        return {
+            'time_weighted_return': round(twr, 4),
+            'modified_irr': round(modified_irr, 4),
+            'geometric_mean_return': round(geometric_mean, 4),
+            'primary_return': round(primary_return, 4),
+            'calculation_method': calculation_method,
+            'cum_investment_status': 'negative' if final_cum_inv <= 0 else 'positive'
+        }
+        
+    except Exception as e:
+        logger.error(f"VA增強投報率計算失敗: {e}")
+        return {
+            'time_weighted_return': 0.0,
+            'modified_irr': 0.0,
+            'geometric_mean_return': 0.0,
+            'primary_return': 0.0,
+            'calculation_method': 'calculation_error',
+            'error_message': str(e)
+        }
+
+def calculate_enhanced_annualized_return(final_value: float, total_investment: float, 
+                                       investment_years: float, period_returns: List[float] = None,
+                                       periods_per_year: int = 4) -> Dict[str, float]:
+    """
+    增強的年化報酬率計算
+    
+    根據累積投入情況自動選擇最適當的計算方法：
+    - 累積投入>0：使用傳統CAGR + TWR驗證
+    - 累積投入≤0：使用時間加權報酬率作為主要指標
+    
+    Args:
+        final_value: 期末總資產價值
+        total_investment: 累計總投入金額 (可能為負)
+        investment_years: 投資年數
+        period_returns: 各期報酬率列表 (可選)
+        periods_per_year: 每年期數
+    
+    Returns:
+        Dict: 包含多種計算結果和推薦指標
+    """
+    results = {
+        'traditional_cagr': 0.0,
+        'time_weighted_return': 0.0,
+        'recommended_return': 0.0,
+        'calculation_status': '',
+        'recommendation_reason': ''
+    }
+    
+    try:
+        # 1. 嘗試傳統CAGR計算
+        if total_investment > 0 and investment_years > 0:
+            traditional_cagr = calculate_annualized_return(final_value, total_investment, investment_years)
+            results['traditional_cagr'] = traditional_cagr
+        
+        # 2. 計算時間加權報酬率
+        if period_returns and len(period_returns) > 0:
+            twr = calculate_time_weighted_return(period_returns, periods_per_year)
+            results['time_weighted_return'] = twr
+        
+        # 3. 根據累積投入狀況決定推薦指標
+        if total_investment <= 0:
+            # 累積投入≤0：推薦TWR
+            results['recommended_return'] = results['time_weighted_return']
+            results['calculation_status'] = 'negative_cumulative_investment'
+            results['recommendation_reason'] = '累積投入≤0，使用時間加權報酬率避免失真'
+        elif abs(results['traditional_cagr'] - results['time_weighted_return']) > 2.0:
+            # 兩種方法差異過大：推薦TWR
+            results['recommended_return'] = results['time_weighted_return']
+            results['calculation_status'] = 'method_divergence'
+            results['recommendation_reason'] = 'CAGR與TWR差異過大，TWR更能反映投資績效'
+        else:
+            # 正常情況：使用CAGR，TWR作為驗證
+            results['recommended_return'] = results['traditional_cagr']
+            results['calculation_status'] = 'normal_calculation'
+            results['recommendation_reason'] = '累積投入>0且方法一致，使用傳統CAGR'
+        
+        logger.info(f"增強投報率計算完成: 推薦={results['recommended_return']:.2f}%, 原因={results['recommendation_reason']}")
+        
+    except Exception as e:
+        logger.error(f"增強年化報酬率計算失敗: {e}")
+        results['calculation_status'] = 'calculation_error'
+        results['recommendation_reason'] = f'計算錯誤: {str(e)}'
+    
+    return results
+
+
+
 
 #### 2.3 圖表架構與視覺化模組
 
@@ -3432,10 +3770,11 @@ SUMMARY_METRICS_DISPLAY = {
         },
         {
             "title": "📈 年化報酬率",
-            "content": "annualized_return",
-            "calculation": "第2章calculate_annualized_return函數",
+            "content": "enhanced_annualized_return",
+            "calculation": "第2章calculate_enhanced_annualized_return函數（時間加權報酬率）",
             "format": "percentage_with_delta",
-            "mobile_priority": 3
+            "mobile_priority": 3,
+            "tooltip": "採用時間加權報酬率(TWR)計算，消除現金流時機影響，反映真實投資策略績效"
         }
     ],
     "responsive_behavior": {
@@ -3465,7 +3804,7 @@ STRATEGY_COMPARISON_CARDS = {
         # 第2章VA計算集成
         "calculation_backend": {
             "final_value": "VA策略表格最後一行Cum_Value",
-            "return_calculation": "calculate_annualized_return",
+            "return_calculation": "calculate_enhanced_annualized_return",
             "table_reference": "VA_COLUMNS_ORDER"
         }
     },
@@ -3483,7 +3822,7 @@ STRATEGY_COMPARISON_CARDS = {
         # 第2章DCA計算集成
         "calculation_backend": {
             "final_value": "DCA策略表格最後一行Cum_Value",
-            "return_calculation": "calculate_annualized_return", 
+            "return_calculation": "calculate_enhanced_annualized_return", 
             "table_reference": "DCA_COLUMNS_ORDER"
         }
     }
@@ -4011,7 +4350,7 @@ import time
 from src.data_sources import TiingoDataSource, FREDDataSource, SimulationDataSource
 from src.calculations import calculate_va_target_value, calculate_dca_investment
 from src.strategies import VAStrategy, DCAStrategy
-from src.performance_metrics import calculate_annualized_return, calculate_irr
+from src.performance_metrics import calculate_annualized_return, calculate_enhanced_annualized_return, calculate_time_weighted_return, calculate_irr
 
 def main():
     """
@@ -4218,7 +4557,7 @@ CHAPTER2_INTEGRATION_CHECKLIST = {
     },
     "performance_metrics": {
         "irr_calculation": "calculate_irr函數",
-        "annualized_return": "calculate_annualized_return函數",
+        "annualized_return": "calculate_enhanced_annualized_return函數（時間加權報酬率）",
         "sharpe_ratio": "3位小數精度",
         "max_drawdown": "calculate_max_drawdown函數"
     },

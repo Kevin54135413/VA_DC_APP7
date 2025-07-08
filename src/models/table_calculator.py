@@ -19,7 +19,8 @@ import logging
 from .calculation_formulas import (
     calculate_annualized_return, calculate_irr,
     build_va_cash_flows, build_dca_cash_flows,
-    calculate_volatility_and_sharpe, calculate_max_drawdown
+    calculate_volatility_and_sharpe, calculate_max_drawdown,
+    calculate_enhanced_annualized_return, calculate_time_weighted_return
 )
 
 # 導入表格規格定義
@@ -79,16 +80,34 @@ def calculate_derived_metrics(df: pd.DataFrame,
                 else:
                     enhanced_df.loc[i, "Period_Return"] = 0.0
         
-        # 計算累計報酬率
+        # 計算累計報酬率 - 增強版本，處理累積投入≤0的情況
         if "Cumulative_Return" not in enhanced_df.columns:
-            enhanced_df["Cumulative_Return"] = enhanced_df.apply(
-                lambda row: ((row["Cum_Value"] / row["Cum_Inv"]) - 1) * 100 
-                if pd.notna(row["Cum_Value"]) and pd.notna(row["Cum_Inv"]) and row["Cum_Inv"] > 0 
-                else 0.0, 
-                axis=1
-            )
+            enhanced_df["Cumulative_Return"] = 0.0
+            
+            for i in range(len(enhanced_df)):
+                cum_value = enhanced_df.loc[i, "Cum_Value"]
+                cum_inv = enhanced_df.loc[i, "Cum_Inv"]
+                
+                if pd.notna(cum_value) and pd.notna(cum_inv):
+                    if cum_inv > 0:
+                        # 傳統計算方式：累積投入>0
+                        cumulative_return = ((cum_value / cum_inv) - 1) * 100
+                        enhanced_df.loc[i, "Cumulative_Return"] = cumulative_return
+                    else:
+                        # 累積投入≤0：使用時間加權方法計算
+                        if i > 0:
+                            period_returns = enhanced_df.loc[:i, "Period_Return"].dropna().tolist()
+                            if period_returns:
+                                # 計算累積複合報酬率
+                                returns_decimal = [r/100 for r in period_returns if r != 0]
+                                if returns_decimal:
+                                    compound_return = 1.0
+                                    for r in returns_decimal:
+                                        compound_return *= (1 + r)
+                                    cumulative_return = (compound_return - 1) * 100
+                                    enhanced_df.loc[i, "Cumulative_Return"] = cumulative_return
         
-        # 計算年化報酬率
+        # 計算年化報酬率 - 增強版本，處理累積投入≤0的情況
         if "Annualized_Return" not in enhanced_df.columns:
             enhanced_df["Annualized_Return"] = 0.0
             
@@ -97,10 +116,17 @@ def calculate_derived_metrics(df: pd.DataFrame,
                 cum_value = enhanced_df.loc[i, "Cum_Value"]
                 cum_inv = enhanced_df.loc[i, "Cum_Inv"]
                 
-                if period > 0 and pd.notna(cum_value) and pd.notna(cum_inv) and cum_inv > 0:
+                if period > 0 and pd.notna(cum_value) and pd.notna(cum_inv):
                     investment_years = (period + 1) / periods_per_year
                     if investment_years > 0:
-                        ann_return = calculate_annualized_return(cum_value, cum_inv, investment_years)
+                        # 獲取到目前為止的期間報酬率用於TWR計算
+                        period_returns = enhanced_df.loc[:i, "Period_Return"].dropna().tolist()
+                        
+                        # 使用增強年化報酬率計算（自動處理累積投入≤0的情況）
+                        ann_return = calculate_enhanced_annualized_return(
+                            cum_value, cum_inv, investment_years, 
+                            period_returns, periods_per_year
+                        )
                         enhanced_df.loc[i, "Annualized_Return"] = ann_return
         
         logger.info("衍生欄位計算完成")
@@ -153,16 +179,23 @@ def calculate_summary_metrics(va_rebalance_df: Optional[pd.DataFrame] = None,
                 final_value = final_row.get("Cum_Value", 0)
                 total_investment = final_row.get("Cum_Inv", 0)
                 
+                # 總報酬率計算 - 處理累積投入≤0的情況
                 if total_investment > 0:
                     total_return = ((final_value / total_investment) - 1) * 100
                 else:
-                    total_return = 0
+                    # 累積投入≤0：使用最終期的累積報酬率
+                    total_return = final_row.get("Cumulative_Return", 0)
                 
-                # 年化報酬率
+                # 年化報酬率 - 使用增強版本處理累積投入≤0的情況
                 investment_years = len(strategy_df) / periods_per_year
-                if investment_years > 0 and total_investment > 0:
-                    annualized_return = calculate_annualized_return(
-                        final_value, total_investment, investment_years
+                if investment_years > 0:
+                    # 獲取期間報酬率用於TWR計算
+                    period_returns = strategy_df["Period_Return"].dropna().tolist() if "Period_Return" in strategy_df.columns else []
+                    
+                    # 使用增強年化報酬率計算
+                    annualized_return = calculate_enhanced_annualized_return(
+                        final_value, total_investment, investment_years,
+                        period_returns, periods_per_year
                     )
                 else:
                     annualized_return = 0
