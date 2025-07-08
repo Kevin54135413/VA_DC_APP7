@@ -235,7 +235,6 @@ class ResultsDisplayManager:
     """中央結果展示區域管理器 - 實作第3章3.3節所有規格"""
     
     def __init__(self):
-        self.summary_config = SUMMARY_METRICS_DISPLAY
         self.strategy_cards_config = STRATEGY_COMPARISON_CARDS
         self.charts_config = SIMPLIFIED_CHARTS_CONFIG
         self.tables_config = DATA_TABLES_CONFIG
@@ -267,9 +266,6 @@ class ResultsDisplayManager:
         if not self.calculation_results:
             st.info("👈 請在左側設定投資參數，然後點擊「🎯 執行策略計算」按鈕開始分析")
             return
-        
-        # 渲染頂部摘要卡片
-        self.render_summary_metrics_display()
         
         # 渲染策略對比卡片
         self.render_strategy_comparison_cards()
@@ -1255,88 +1251,7 @@ class ResultsDisplayManager:
             else:
                 st.info(f"🎲 **隨機生成**: 每次重新生成將產生不同的市場情境")
     
-    def render_summary_metrics_display(self):
-        """渲染頂部摘要卡片 - 3.3.1節實作"""
-        st.markdown("### 📊 投資策略比較摘要")
-        
-        if not self.calculation_results:
-            st.info("請設定投資參數後開始分析")
-            return
-        
-        # 響應式布局
-        if st.session_state.get('device_type', 'desktop') == 'mobile':
-            # 移動版垂直堆疊
-            self._render_metric_card("recommended_strategy")
-            self._render_metric_card("expected_final_value")
-            self._render_metric_card("annualized_return")
-        else:
-            # 桌面版水平布局
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-               self._render_metric_card("recommended_strategy")
-            with col2:
-               self._render_metric_card("expected_final_value")
-            with col3:
-               self._render_metric_card("annualized_return")
-    
-    def _render_metric_card(self, metric_key: str):
-        """渲染單個指標卡片"""
-        metric_config = self.summary_config["metrics"][metric_key]
-        
-        if metric_key == "recommended_strategy":
-            # 動態推薦策略
-            recommendation = self._calculate_dynamic_recommendation()
-            st.metric(
-               label=f"{metric_config['icon']} {metric_config['label']}",
-               value=recommendation["strategy"],
-               delta=recommendation["reason"],
-               help=metric_config["tooltip"]
-            )
-        
-        elif metric_key == "expected_final_value":
-            # 預期最終價值
-            final_values = self._get_final_values()
-            if final_values:
-               st.metric(
-                   label=f"{metric_config['icon']} {metric_config['label']}",
-                   value=f"${final_values['recommended']:,.0f}",
-                   delta=f"${final_values['difference']:,.0f}",
-                   help=metric_config["tooltip"]
-               )
-        
-        elif metric_key == "annualized_return":
-            # 年化報酬率
-            returns = self._get_annualized_returns()
-            if returns:
-               st.metric(
-                   label=f"{metric_config['icon']} {metric_config['label']}",
-                   value=f"{returns['recommended']:.2f}%",
-                   delta=f"{returns['difference']:.2f}%",
-                   help=metric_config["tooltip"]
-               )
-    
-    def _calculate_dynamic_recommendation(self) -> Dict[str, str]:
-        """計算動態推薦策略"""
-        if not self.calculation_results:
-            return {"strategy": "請先設定參數", "reason": ""}
-        
-        summary_df = self.calculation_results["summary_df"]
-        
-        if len(summary_df) >= 2:
-            va_row = summary_df[summary_df["Strategy"] == "VA_Rebalance"].iloc[0]
-            dca_row = summary_df[summary_df["Strategy"] == "DCA"].iloc[0]
-            
-            # 基於風險收益比較
-            va_sharpe = va_row["Sharpe_Ratio"]
-            dca_sharpe = dca_row["Sharpe_Ratio"]
-            
-            if va_sharpe > dca_sharpe:
-               return {"strategy": "VA策略", "reason": "風險收益比更佳"}
-            else:
-               return {"strategy": "DCA策略", "reason": "風險較低"}
-        
-        return {"strategy": "VA策略", "reason": "預設推薦"}
+
     
     def _get_final_values(self) -> Optional[Dict[str, float]]:
         """獲取最終價值比較"""
