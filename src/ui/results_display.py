@@ -986,8 +986,8 @@ class ResultsDisplayManager:
                     
                 else:
                     # 熊市：年化報酬率-15%～ -2%，波動率25%-35%，持續1-2年（嚴格遵循需求文件規格）
-                    # 基本熊市報酬率：-15% ~ -2%（包含偏態分佈的正報酬可能）
-                    base_return = np.random.uniform(-0.15, 0.02)
+                    # 基本熊市報酬率：-15% ~ -2%（純負報酬，無正報酬可能）
+                    base_return = np.random.uniform(-0.15, -0.02)
                     
                     # 極端事件：5-10%機率出現-30%以上年度跌幅
                     extreme_event_probability = 0.075  # 7.5%機率
