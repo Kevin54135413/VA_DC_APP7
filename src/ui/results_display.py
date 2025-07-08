@@ -775,10 +775,10 @@ class ResultsDisplayManager:
                    
                    # 確保價格變化在合理範圍內
                    price_change_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
-                   if price_change_ratio > 0.15:
-                       max_change = 0.15 if spy_price_end > spy_price_origin else -0.15
+                   if price_change_ratio > 0.35:  # ✅ 只限制極端異常（35%以上）
+                       max_change = 0.35 if spy_price_end > spy_price_origin else -0.35
                        spy_price_end = round(spy_price_origin * (1 + max_change), 2)
-                       logger.debug(f"期間{period}：限制股價變化幅度至15%，從{spy_price_origin}變為{spy_price_end}")
+                       logger.debug(f"期間{period}：限制股價變化幅度至35%，從{spy_price_origin}變為{spy_price_end}")
                    
                    # 債券殖利率：較小的波動
                    bond_yield_change = np.random.normal(0, 0.1)
@@ -880,7 +880,7 @@ class ResultsDisplayManager:
         from datetime import datetime
         
         logger = get_component_logger("ResultsDisplay")
-        logger.info("生成備用模擬數據")
+        logger.info("生成備用模擬數據 - 優化：更接近美國股市歷史特徵")
         
         # 數據生成時間戳記錄
         generation_timestamp = datetime.now()
@@ -958,38 +958,78 @@ class ResultsDisplayManager:
             
         # 生成市場週期
         def generate_market_cycles():
-            """生成市場週期序列"""
+            """生成市場週期序列 - 優化：更接近美國股市歷史特徵"""
             np.random.seed(base_seed)
             cycles = []
             remaining_periods = total_periods
+            is_first_cycle = True
+            previous_cycle_type = None
             
             while remaining_periods > 0:
                 # 決定市場類型
                 is_bull_market = np.random.random() < bull_market_probability
                 
                 if is_bull_market:
-                    # 牛市：年化報酬率8%-12%，波動率15%-20%，持續3-7年
-                    annual_return = np.random.uniform(0.08, 0.12)
-                    annual_volatility = np.random.uniform(0.15, 0.20) * volatility_multiplier
-                    duration_years = np.random.uniform(3, 7)
+                    # 牛市：年化報酬率8%-20%，波動率15%-20%，持續2-5年（嚴格遵循需求文件規格）
+                    annual_return = np.random.uniform(0.08, 0.20)
+                    
+                    # 波動率動態調整：市場轉換期增加波動率
+                    if previous_cycle_type == 'bear':
+                        # 熊轉牛初期：波動率較高
+                        annual_volatility = np.random.uniform(0.18, 0.25) * volatility_multiplier
+                    else:
+                        # 正常牛市期間
+                        annual_volatility = np.random.uniform(0.15, 0.20) * volatility_multiplier
+                    
+                    duration_years = np.random.uniform(2, 5)
                     market_type = 'bull'
+                    
                 else:
-                    # 熊市：年化報酬率-10%-2%，波動率25%-35%，持續1-3年
-                    annual_return = np.random.uniform(-0.10, 0.02)
-                    annual_volatility = np.random.uniform(0.25, 0.35) * volatility_multiplier
-                    duration_years = np.random.uniform(1, 3)
+                    # 熊市：年化報酬率-15%～ -2%，波動率25%-35%，持續1-2年（嚴格遵循需求文件規格）
+                    # 基本熊市報酬率：-15% ~ -2%（包含偏態分佈的正報酬可能）
+                    base_return = np.random.uniform(-0.15, 0.02)
+                    
+                    # 極端事件：5-10%機率出現-30%以上年度跌幅
+                    extreme_event_probability = 0.075  # 7.5%機率
+                    if np.random.random() < extreme_event_probability:
+                        # 極端熊市：-35% ~ -30%
+                        annual_return = np.random.uniform(-0.35, -0.30)
+                        # 極端事件期間波動率急劇上升
+                        annual_volatility = np.random.uniform(0.35, 0.45) * volatility_multiplier
+                        logger.info(f"模擬極端熊市事件：年化報酬率{annual_return:.2%}，波動率{annual_volatility:.2%}")
+                    else:
+                        annual_return = base_return
+                        # 波動率動態調整：熊市初期急劇上升
+                        if previous_cycle_type == 'bull':
+                            # 牛轉熊初期：波動率急劇上升
+                            annual_volatility = np.random.uniform(0.30, 0.40) * volatility_multiplier
+                        else:
+                            # 正常熊市期間
+                            annual_volatility = np.random.uniform(0.25, 0.35) * volatility_multiplier
+                    
+                    duration_years = np.random.uniform(1, 2)
                     market_type = 'bear'
                 
                 duration_periods = min(int(duration_years * periods_per_year), remaining_periods)
+                
+                # 記錄週期轉換資訊
+                transition_info = {
+                    'is_transition': not is_first_cycle and previous_cycle_type != market_type,
+                    'transition_type': f"{previous_cycle_type}_to_{market_type}" if not is_first_cycle else "initial",
+                    'volatility_boost': annual_volatility > 0.25 if market_type == 'bull' else annual_volatility > 0.35
+                }
                 
                 cycles.append({
                     'type': market_type,
                     'duration': duration_periods,
                     'annual_return': annual_return,
-                    'annual_volatility': annual_volatility
+                    'annual_volatility': annual_volatility,
+                    'transition_info': transition_info  # 新增：週期轉換資訊
                 })
                 
                 remaining_periods -= duration_periods
+                previous_cycle_type = market_type
+                is_first_cycle = False
             
             return cycles
         
@@ -1050,11 +1090,11 @@ class ResultsDisplayManager:
             
             # 價格合理性檢查
             price_change = abs(period_end_price - period_start_price) / period_start_price
-            if price_change > 0.15:  # 單期變動超過15%時進行調整
+            if price_change > 0.35:  # ✅ 只限制極端異常（35%以上）
                 if period_end_price > period_start_price:
-                    period_end_price = period_start_price * 1.15
+                    period_end_price = period_start_price * 1.35
                 else:
-                    period_end_price = period_start_price * 0.85
+                    period_end_price = period_start_price * 0.65
                 period_end_price = round(period_end_price, 2)
             
             return {
@@ -1085,14 +1125,48 @@ class ResultsDisplayManager:
         current_cycle_index = 0
         current_cycle_remaining = market_cycles[0]['duration']
         
+        # 觸發條件追蹤變量
+        cumulative_decline_from_peak = 0.0  # 從高點累積跌幅
+        peak_price = None  # 記錄高點價格
+        bear_market_triggered = False  # 熊市觸發標記
+        
         for period_idx, period_info in enumerate(timeline):
             # 為每期設定不同的隨機種子
             np.random.seed(base_seed + period_idx * 17 + int(start_date.timetuple().tm_yday))
             
-            # 更新市場週期索引
+            # 更新市場週期索引（傳統時間驅動）
             if current_cycle_remaining <= 0 and current_cycle_index < len(market_cycles) - 1:
                 current_cycle_index += 1
                 current_cycle_remaining = market_cycles[current_cycle_index]['duration']
+                bear_market_triggered = False  # 重置觸發標記
+            
+            # 週期轉換觸發條件檢查（條件驅動）
+            if previous_spy_price_end is not None:
+                # 更新高點價格
+                if peak_price is None or previous_spy_price_end > peak_price:
+                    peak_price = previous_spy_price_end
+                    cumulative_decline_from_peak = 0.0
+                else:
+                    # 計算從高點累積跌幅
+                    cumulative_decline_from_peak = (peak_price - previous_spy_price_end) / peak_price
+                
+                # 觸發條件：連續下跌20%觸發熊市（如果當前不是熊市且未被觸發）
+                if (cumulative_decline_from_peak >= 0.20 and 
+                    market_cycles[current_cycle_index]['type'] == 'bull' and 
+                    not bear_market_triggered and
+                    current_cycle_index < len(market_cycles) - 1):
+                    
+                    # 檢查下一個週期是否為熊市，如果是則提前觸發
+                    next_cycle_index = current_cycle_index + 1
+                    if next_cycle_index < len(market_cycles) and market_cycles[next_cycle_index]['type'] == 'bear':
+                        logger.info(f"期間{period_info['period']}：觸發條件滿足，從高點跌幅{cumulative_decline_from_peak:.2%}，提前進入熊市週期")
+                        current_cycle_index = next_cycle_index
+                        current_cycle_remaining = market_cycles[current_cycle_index]['duration']
+                        bear_market_triggered = True
+                        
+                        # 重置高點追蹤
+                        peak_price = previous_spy_price_end
+                        cumulative_decline_from_peak = 0.0
             
             period = period_info['period']
             date_str = period_info['adjusted_start_date'].strftime('%Y-%m-%d')
@@ -1249,17 +1323,49 @@ class ResultsDisplayManager:
                 st.markdown("#### 🔄 市場週期組成")
                 
                 cycles_data = []
+                extreme_events_count = 0
+                transition_events_count = 0
+                
                 for i, cycle in enumerate(info['market_cycles'], 1):
+                    # 檢查極端事件
+                    is_extreme = cycle.get('annual_return', 0) < -0.30
+                    if is_extreme:
+                        extreme_events_count += 1
+                    
+                    # 檢查週期轉換
+                    transition_info = cycle.get('transition_info', {})
+                    if transition_info.get('is_transition', False):
+                        transition_events_count += 1
+                    
+                    # 構建週期顯示數據
+                    market_icon = '🐂' if cycle['type'] == 'bull' else '🐻'
+                    if is_extreme:
+                        market_icon += '💥'  # 極端事件標記
+                    if transition_info.get('volatility_boost', False):
+                        market_icon += '⚡'  # 高波動標記
+                    
                     cycles_data.append({
                         '週期': f"第{i}週期",
-                        '市場類型': '🐂 牛市' if cycle['type'] == 'bull' else '🐻 熊市',
+                        '市場類型': f"{market_icon} {'牛市' if cycle['type'] == 'bull' else '熊市'}",
                         '持續期間': f"{cycle['duration']} 期",
                         '年化報酬率': f"{cycle['annual_return']:.2%}",
-                        '年化波動率': f"{cycle['annual_volatility']:.2%}"
+                        '年化波動率': f"{cycle['annual_volatility']:.2%}",
+                        '特殊事件': '極端熊市' if is_extreme else ('週期轉換' if transition_info.get('is_transition', False) else '-')
                     })
                 
                 cycles_df = pd.DataFrame(cycles_data)
                 st.dataframe(cycles_df, use_container_width=True, hide_index=True)
+                
+                # 顯示歷史特徵統計
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.metric("極端事件次數", f"{extreme_events_count} 次", help="年化報酬率低於-30%的事件")
+                with col_b:
+                    st.metric("週期轉換次數", f"{transition_events_count} 次", help="牛熊市場轉換事件")
+                with col_c:
+                    bear_cycles = [c for c in info['market_cycles'] if c['type'] == 'bear']
+                    avg_bear_return = sum(c['annual_return'] for c in bear_cycles) / len(bear_cycles) if bear_cycles else 0
+                    st.metric("平均熊市報酬", f"{avg_bear_return:.1%}", help="熊市期間平均年化報酬率")
             
             # 數據追蹤資訊
             st.markdown("#### 🔍 數據追蹤")
