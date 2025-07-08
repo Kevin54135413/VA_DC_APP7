@@ -575,7 +575,6 @@ class ParameterManager:
         # 主要日期選擇器
         selected_date = st.date_input(
             param["label"],
-            value=st.session_state.investment_start_date,
             min_value=min_date,
             max_value=max_date,
             help=param["help"],
