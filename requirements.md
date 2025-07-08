@@ -3852,6 +3852,13 @@ SIMPLIFIED_CHARTS_CONFIG = {
                 "chart_type": "risk_metrics",
                 "description": "風險指標比較",
                 "mobile_optimized": True
+            },
+            {
+                "name": "💰 投資流分析對比",
+                "chart_type": "investment_flow_with_summary",
+                "description": "VA與DCA策略投資行為分析及策略比較摘要",
+                "mobile_optimized": True,
+                "includes_summary_table": True
             }
         ]
     },
@@ -3878,6 +3885,38 @@ SIMPLIFIED_CHARTS_CONFIG = {
             "metrics": ["風險度", "報酬率", "穩定性"],
             "visualization": "horizontal_comparison_bars",
             "mobile_friendly": True
+        },
+        "investment_flow_with_summary_chart": {
+            "data_source": "第2章VA和DCA策略計算結果",
+            "chart_type": "dual_column_layout",
+            "layout": {
+                "investment_flow_charts": {
+                    "va_chart": {
+                        "x_field": "Period",
+                        "y_field": "Invested",
+                        "chart_type": "bar",
+                        "color_scheme": "redgreen",
+                        "title": "VA策略投資行為分析"
+                    },
+                    "dca_chart": {
+                        "x_field": "Period", 
+                        "y_field": "Fixed_Investment",
+                        "chart_type": "bar",
+                        "color_scheme": "green",
+                        "title": "DCA策略投資行為分析"
+                    }
+                },
+                "summary_table": {
+                    "data_source": "第2章summary_comparison結果",
+                    "position": "below_charts",
+                    "title": "📊 策略比較摘要",
+                    "columns": ["Strategy", "Final_Value", "Total_Return", "Annualized_Return", "Volatility", "Sharpe_Ratio", "Max_Drawdown"],
+                    "formatting": "第2章PERCENTAGE_PRECISION_RULES",
+                    "mobile_responsive": True
+                }
+            },
+            "interactive": True,
+            "mobile_optimized": True
         }
     }
 }
