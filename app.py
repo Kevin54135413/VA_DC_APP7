@@ -1,6 +1,16 @@
 """
 投資策略績效比較分析系統 - 完整Streamlit應用實現
 嚴格實作第3章3.6節規格，整合第1-2章所有技術規範
+
+版本: v4.0.0 - 市場模擬優化版
+更新日期: 2025年1月8日
+主要功能:
+- 模擬數據市場週期優化，更接近美國股市歷史特徵
+- 熊市報酬率分佈優化 (-15% ~ 2%)
+- 極端事件模擬 (7.5%機率出現-30%以上跌幅)
+- 波動率動態調整機制
+- 週期轉換觸發條件 (20%下跌觸發熊市)
+- 提升VA策略在模擬數據中的真實表現
 """
 
 import streamlit as st
@@ -14,6 +24,11 @@ import sys
 import os
 import logging
 from typing import Dict, Any, Optional, Union, List
+
+# 應用版本信息
+APP_VERSION = "v4.0.0"
+APP_VERSION_NAME = "市場模擬優化版"
+APP_UPDATE_DATE = "2025年1月8日"
 
 # 添加src目錄到Python路徑
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -423,6 +438,9 @@ def render_modern_header():
     st.markdown("# 🏠 投資策略比較分析")
     st.markdown("##### 輕鬆比較定期定值(VA) vs 定期定額(DCA)策略")
     
+    # 版本信息顯示
+    st.markdown(f"<small style='color: #666; font-size: 0.8em;'>**{APP_VERSION} - {APP_VERSION_NAME}** | 更新: {APP_UPDATE_DATE}</small>", unsafe_allow_html=True)
+    
     # 智能狀態指示器（整合第1章數據源狀態）
     col1, col2, col3, col4 = st.columns([2, 2, 2, 6])
     
@@ -450,6 +468,29 @@ def render_modern_header():
             st.markdown("✅ 已完成計算")
         else:
             st.markdown("⏳ 等待計算")
+    
+    # 版本更新日誌
+    with st.expander(f"📋 {APP_VERSION} 更新日誌", expanded=False):
+        st.markdown("### 🆕 本次更新亮點")
+        
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            st.markdown("#### 🎯 模擬數據優化")
+            st.markdown("- **熊市報酬率**: 從-10%~2%優化為-15%~2%")
+            st.markdown("- **牛市報酬率**: 從8%-12%擴展為8%-20%")
+            st.markdown("- **市場週期**: 更符合美國股市歷史特徵")
+            st.markdown("- **極端事件**: 7.5%機率模擬-30%以上跌幅")
+        
+        with col_b:
+            st.markdown("#### ⚡ 智能功能增強")
+            st.markdown("- **動態波動率**: 市場轉換期自動提升")
+            st.markdown("- **觸發條件**: 20%下跌自動觸發熊市")
+            st.markdown("- **價格連續性**: 優化期間價格生成邏輯")
+            st.markdown("- **VA策略**: 更真實的市場表現模擬")
+        
+        st.markdown("#### 📊 效果預期")
+        st.info("**預期改善**: 模擬數據的VA與DCA策略年化報酬率將更接近真實數據的5%水準，提升策略比較的參考價值。")
     
     st.markdown("---")
 

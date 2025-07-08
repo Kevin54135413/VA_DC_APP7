@@ -259,7 +259,7 @@ class TechnicalComplianceValidator:
         report = {
             "report_metadata": {
                 "generated_at": datetime.now().isoformat(),
-                "validator_version": "3.8.1",
+                "validator_version": "4.0.0",
                 "total_validations": total_checks,
                 "passed_validations": total_passed,
                 "overall_compliance_rate": overall_compliance,
