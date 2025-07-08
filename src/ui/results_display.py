@@ -867,7 +867,10 @@ class ResultsDisplayManager:
         generation_timestamp = datetime.now()
         
         # 隨機種子管理
-        if hasattr(st.session_state, 'simulation_seed') and st.session_state.simulation_seed is not None:
+        # 優先使用手動設定的種子，其次使用自動生成的種子
+        if hasattr(st.session_state, 'custom_simulation_seed') and st.session_state.custom_simulation_seed is not None:
+            base_seed = st.session_state.custom_simulation_seed
+        elif hasattr(st.session_state, 'simulation_seed') and st.session_state.simulation_seed is not None:
             base_seed = st.session_state.simulation_seed
         else:
             # 預設種子：結合當前時間和用戶參數
@@ -879,8 +882,8 @@ class ResultsDisplayManager:
             'generation_timestamp': generation_timestamp,
             'random_seed': base_seed,
             'regeneration_count': st.session_state.get('simulation_regeneration_count', 0),
-            'market_bias': st.session_state.get('simulation_market_bias', '隨機組合'),
-            'volatility_level': st.session_state.get('simulation_volatility_level', '中波動'),
+            'market_bias': getattr(st.session_state, 'simulation_market_bias', '隨機組合'),
+            'volatility_level': getattr(st.session_state, 'simulation_volatility_level', '中波動'),
             'seed_mode': st.session_state.get('simulation_seed_mode', '自動生成')
         }
         
@@ -915,7 +918,7 @@ class ResultsDisplayManager:
         logger.info(f"模擬數據生成 - 種子: {base_seed}, 期間: {total_periods}, 起始: {start_date}")
         
         # 市場偏好調整
-        market_bias = st.session_state.get('simulation_market_bias', '隨機組合')
+        market_bias = getattr(st.session_state, 'simulation_market_bias', '隨機組合')
         if market_bias == "偏向牛市":
             bull_market_probability = 0.8
         elif market_bias == "偏向熊市":
@@ -926,7 +929,7 @@ class ResultsDisplayManager:
             bull_market_probability = 0.7
         
         # 波動性調整
-        volatility_level = st.session_state.get('simulation_volatility_level', '中波動')
+        volatility_level = getattr(st.session_state, 'simulation_volatility_level', '中波動')
         if volatility_level == "低波動":
             volatility_multiplier = 0.7
         elif volatility_level == "高波動":

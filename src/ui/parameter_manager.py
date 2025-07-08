@@ -1007,35 +1007,37 @@ class ParameterManager:
                 )
                 
                 if seed_mode == "手動設定":
+                    current_seed = st.session_state.get('simulation_seed', 12345)
                     custom_seed = st.number_input(
                         "自訂隨機種子",
                         min_value=1,
                         max_value=99999,
-                        value=st.session_state.get('simulation_seed', 12345),
+                        value=current_seed if isinstance(current_seed, int) and 1 <= current_seed <= 99999 else 12345,
                         key="custom_simulation_seed",
                         help="輸入1-99999之間的數字作為隨機種子"
                     )
-                    st.session_state.simulation_seed = custom_seed
+                    # 透過key值自動管理，不直接設定session_state
                 
                 # 市場情境偏好
                 st.markdown("**市場情境偏好**")
+                current_market_bias = st.session_state.get('simulation_market_bias', '隨機組合')
                 market_bias = st.selectbox(
                     "市場趨勢偏好",
                     ["隨機組合", "偏向牛市", "偏向熊市", "平衡市場"],
+                    index=["隨機組合", "偏向牛市", "偏向熊市", "平衡市場"].index(current_market_bias) if current_market_bias in ["隨機組合", "偏向牛市", "偏向熊市", "平衡市場"] else 0,
                     key="simulation_market_bias",
                     help="影響牛市/熊市週期的分佈比例"
                 )
-                st.session_state.simulation_market_bias = market_bias
                 
                 # 波動性設定
+                current_volatility_level = st.session_state.get('simulation_volatility_level', '中波動')
                 volatility_level = st.select_slider(
                     "波動性水準",
                     ["低波動", "中波動", "高波動"],
-                    value="中波動",
+                    value=current_volatility_level if current_volatility_level in ["低波動", "中波動", "高波動"] else "中波動",
                     key="simulation_volatility_level",
                     help="調整價格變動的劇烈程度"
                 )
-                st.session_state.simulation_volatility_level = volatility_level
         
         # 顯示智能回退機制說明
         if selected_option['value'] == 'real_data':
