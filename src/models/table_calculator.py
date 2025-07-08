@@ -176,13 +176,13 @@ def calculate_summary_metrics(va_rebalance_df: Optional[pd.DataFrame] = None,
                     if "Period_Return" in strategy_df.columns:
                         period_returns = strategy_df["Period_Return"].dropna()
                         if len(period_returns) > 1:
-                            # 轉換為小數形式
-                            returns_decimal = [r/100 for r in period_returns if pd.notna(r)]
+                            # 轉換為小數形式，過濾掉第一期的0報酬率
+                            returns_decimal = [r/100 for r in period_returns if pd.notna(r) and r != 0]
                             if len(returns_decimal) > 1:
                                 volatility, sharpe_ratio = calculate_volatility_and_sharpe(
                                     returns_decimal, periods_per_year, risk_free_rate/100
                                 )
-                                volatility *= 100  # 轉換為百分比
+                                # calculate_volatility_and_sharpe已經返回百分比形式，無需再轉換
                 except Exception as e:
                     logger.warning(f"計算 {strategy_name} 風險指標時出現錯誤: {e}")
                 
