@@ -19,82 +19,60 @@ from models.calculation_formulas import calculate_annualized_return
 from models.table_calculator import calculate_summary_metrics
 
 # ============================================================================
-# 3.4.1 個人化建議系統實作 - SMART_RECOMMENDATIONS
+# 智能建議與教育內容配置
 # ============================================================================
 
 SMART_RECOMMENDATIONS = {
-    "recommendation_engine": {
-        "input_factors": [
-            "investment_amount",
-            "time_horizon", 
-            "risk_tolerance_derived",
-            "strategy_performance_comparison"
-        ],
-        "output_format": "user_friendly_advice",
-        "personalization": "high",
-        "calculation_basis": "第2章策略比較結果",
-        "update_frequency": "real_time"
-    },
     "recommendation_templates": {
         "va_recommended": {
-            "title": "🎯 推薦：定期定值策略",
+            "title": "🎯 建議您使用定期定值策略",
             "style": "success_card",
-            "content_template": """
-            **推薦原因**
-            - 預期多賺 ${amount_difference:,.0f}
-            - 適合您的 {investment_period} 年投資期間
-            - 風險收益比更優
-            
-            **注意事項**
-            - 需要定期關注市場調整
-            - 可能涉及賣出操作
-            """,
-            "calculation_basis": "基於第2章策略比較結果",
-            "dynamic_variables": ["amount_difference", "investment_period"],
-            "recommendation_strength": "strong"
+            "content_template": "根據您的投資配置，定期定值策略預計可以為您帶來額外 ${amount_difference:,.0f} 的收益。在 {investment_period} 年的投資期間，這種策略能夠自動調節市場波動。",
+            "reasoning": [
+                "在您的投資期間內表現較佳",
+                "能夠自動平衡市場波動",
+                "適合您的風險承受度"
+            ]
         },
         "dca_recommended": {
-            "title": "💰 推薦：定期定額策略",
-            "style": "info_card", 
-            "content_template": """
-            **推薦原因**
-            - 預期最終價值 ${final_value:,.0f}
-            - 年化報酬率 {annualized_return:.2f}%
-            - 操作簡單適合新手
-            
-            **優勢**
-            - 情緒影響較小
-            - 自動化投資流程
-            """,
-            "calculation_basis": "基於第2章DCA計算結果",
-            "dynamic_variables": ["final_value", "annualized_return"],
-            "recommendation_strength": "moderate"
+            "title": "💰 建議您使用定期定額策略",
+            "style": "success_card",
+            "content_template": "定期定額策略簡單易執行，預計最終價值為 ${final_value:,.0f}，年化報酬率為 {annualized_return:.2f}%。這種策略特別適合忙碌的投資者。",
+            "reasoning": [
+                "操作簡單，適合忙碌生活",
+                "減少情緒影響的投資決策",
+                "長期持續的投資紀律"
+            ]
         },
         "neutral_analysis": {
-            "title": "📊 策略分析",
-            "style": "neutral_card",
-            "content_template": """
-            **兩種策略各有優勢**
-            
-            **VA策略優勢**
-            {va_advantage}
-            
-            **DCA策略優勢**  
-            {dca_advantage}
-            
-            **建議**
-            可根據個人偏好選擇，差異不大。
-            """,
-            "show_when": "performance_difference < 5%",
-            "dynamic_variables": ["va_advantage", "dca_advantage"],
-            "recommendation_strength": "neutral"
+            "title": "📊 兩種策略表現相近",
+            "style": "info_card",
+            "content_template": "經過分析，兩種策略的表現差異不大。定期定值的優勢：{va_advantage}；定期定額的優勢：{dca_advantage}。建議根據個人偏好選擇。",
+            "reasoning": [
+                "表現差異小於5%",
+                "各有不同優勢",
+                "依個人情況選擇"
+            ]
+        }
+    },
+    "risk_assessment": {
+        "high_risk": {
+            "threshold": 0.7,
+            "recommendations": ["考慮降低股票比例", "增加投資分散度"],
+            "warning_message": "您的投資組合風險較高，請謹慎評估"
+        },
+        "moderate_risk": {
+            "threshold": 0.5,
+            "recommendations": ["維持目前配置", "定期檢視調整"],
+            "warning_message": "您的投資組合風險適中"
+        },
+        "low_risk": {
+            "threshold": 0.3,
+            "recommendations": ["可考慮增加股票比例", "提高報酬潛力"],
+            "warning_message": "您的投資組合較為保守"
         }
     }
 }
-
-# ============================================================================
-# 3.4.2 投資知識卡片實作 - EDUCATIONAL_CONTENT
-# ============================================================================
 
 EDUCATIONAL_CONTENT = {
     "knowledge_cards": {
@@ -104,8 +82,7 @@ EDUCATIONAL_CONTENT = {
             "expandable": True,
             "beginner_friendly": True,
             "icon": "🎯",
-            "category": "strategy_explanation",
-            "difficulty_level": "beginner"
+            "category": "strategy_explanation"
         },
         "what_is_dca": {
             "title": "💡 什麼是定期定額？",
@@ -113,26 +90,63 @@ EDUCATIONAL_CONTENT = {
             "expandable": True,
             "beginner_friendly": True,
             "icon": "💰",
-            "category": "strategy_explanation",
-            "difficulty_level": "beginner"
+            "category": "strategy_explanation"
         },
         "risk_explanation": {
             "title": "⚠️ 投資風險說明",
             "content": "所有投資都有風險，過去績效不代表未來表現。請根據自身風險承受能力謹慎投資。",
             "importance": "high",
             "always_visible": True,
-            "expandable": False,
             "icon": "⚠️",
-            "category": "risk_disclaimer",
-            "legal_requirement": True
+            "category": "risk_education"
         },
-        "market_volatility": {
-            "title": "📊 市場波動的影響",
-            "content": "市場波動是投資的常態。VA策略在波動中調節投入，DCA策略用時間平滑波動影響。",
+        "portfolio_balance": {
+            "title": "⚖️ 投資組合平衡",
+            "content": "適當的股債配置能平衡風險與報酬。年輕投資者可承擔較高風險，年長者宜採保守策略。",
             "expandable": True,
             "beginner_friendly": True,
-            "icon": "📊",
-            "category": "market_education"
+            "icon": "⚖️",
+            "category": "portfolio_education"
+        },
+        "time_horizon": {
+            "title": "⏰ 投資時間重要性",
+            "content": "長期投資能有效降低短期波動影響。建議投資期間至少3-5年以上，讓時間成為您的朋友。",
+            "expandable": True,
+            "beginner_friendly": True,
+            "icon": "⏰",
+            "category": "time_education"
+        },
+        "market_volatility": {
+            "title": "📈 市場波動管理",
+            "content": "市場波動是常態，不要因短期波動而改變長期投資計畫。定期檢視但避免頻繁調整。",
+            "expandable": True,
+            "beginner_friendly": True,
+            "icon": "📈",
+            "category": "volatility_education"
+        },
+        "diversification": {
+            "title": "🎯 分散投資重要性",
+            "content": "不要把雞蛋放在同一個籃子裡。透過股債配置、地區分散等方式降低整體投資風險。",
+            "expandable": True,
+            "beginner_friendly": True,
+            "icon": "🎯",
+            "category": "diversification_education"
+        },
+        "investment_discipline": {
+            "title": "💪 投資紀律",
+            "content": "成功投資需要紀律。設定投資計畫後要堅持執行，避免因情緒影響而偏離策略。",
+            "expandable": True,
+            "beginner_friendly": True,
+            "icon": "💪",
+            "category": "discipline_education"
+        },
+        "cost_awareness": {
+            "title": "💸 成本意識",
+            "content": "投資成本會侵蝕報酬。選擇低費用的投資工具，關注管理費、交易成本等。",
+            "expandable": True,
+            "beginner_friendly": True,
+            "icon": "💸",
+            "category": "cost_education"
         },
         "investment_timeline": {
             "title": "⏰ 投資時間的重要性",
@@ -157,12 +171,6 @@ EDUCATIONAL_CONTENT = {
                 "action": "show_faq",
                 "icon": "❓", 
                 "description": "解答疑問"
-            },
-            {
-                "text": "📞 線上客服",
-                "action": "contact_support",
-                "icon": "📞",
-                "description": "即時協助"
             }
         ],
         "tutorial_button": {
@@ -400,10 +408,6 @@ class SmartRecommendationsManager:
             if st.button(help_config["quick_links"][1]["text"], use_container_width=True):
                 self._handle_help_action(help_config["quick_links"][1]["action"])
         
-        # 線上客服按鈕
-        if st.button(help_config["quick_links"][2]["text"], use_container_width=True):
-            self._handle_help_action(help_config["quick_links"][2]["action"])
-        
         # 教學按鈕
         tutorial_btn = help_config["tutorial_button"]
         if st.button(tutorial_btn["text"], type="primary", use_container_width=True):
@@ -415,8 +419,6 @@ class SmartRecommendationsManager:
             self._show_beginner_guide()
         elif action == "show_faq":
             self._show_faq()
-        elif action == "contact_support":
-            self._show_contact_info()
         elif action == "start_tutorial":
             self._start_tutorial()
     
@@ -464,25 +466,6 @@ class SmartRecommendationsManager:
             
             **Q: 系統的計算結果準確嗎？**
             A: 系統使用歷史數據和數學模型進行計算，但過去績效不代表未來表現，請謹慎參考。
-            """)
-    
-    def _show_contact_info(self):
-        """顯示聯絡資訊"""
-        with st.expander("📞 聯絡我們", expanded=True):
-            st.markdown("""
-            ### 📞 聯絡資訊
-            
-            **線上客服**
-            - 服務時間：週一至週五 9:00-18:00
-            - 即時回應您的問題
-            
-            **電子郵件**
-            - support@investment-strategy.com
-            - 24小時內回覆
-            
-            **電話客服**
-            - 客服專線：0800-123-456
-            - 專業顧問為您服務
             """)
     
     def _start_tutorial(self):

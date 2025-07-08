@@ -521,11 +521,11 @@ SMART_RECOMMENDATIONS = {
                 ]
             },
             "contact": {
-                "title": "📞 聯絡支援",
+                "title": "📞 其他資源",
                 "options": [
-                    "線上客服",
-                    "電子郵件",
-                    "電話諮詢"
+                    "使用說明文件",
+                    "計算方法說明",
+                    "常見問題集"
                 ]
             }
         }
@@ -650,7 +650,7 @@ class SmartRecommendationEngine:
         
         st.subheader("🙋‍♀️ 需要幫助？")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         
         with col1:
             if st.button("🚀 快速開始"):
@@ -659,10 +659,6 @@ class SmartRecommendationEngine:
         with col2:
             if st.button("❓ 常見問題"):
                 self._show_faq(help_section["faq"])
-        
-        with col3:
-            if st.button("📞 聯絡支援"):
-                self._show_contact_info(help_section["contact"])
     
     def _show_quick_start_guide(self, guide_config: Dict[str, Any]):
         """顯示快速開始指南"""
@@ -678,13 +674,6 @@ class SmartRecommendationEngine:
                 st.markdown(f"**Q: {item['q']}**")
                 st.markdown(f"A: {item['a']}")
                 st.markdown("---")
-    
-    def _show_contact_info(self, contact_config: Dict[str, Any]):
-        """顯示聯絡資訊"""
-        with st.expander("📞 聯絡支援", expanded=True):
-            st.markdown("### 📞 聯絡方式")
-            for option in contact_config["options"]:
-                st.markdown(f"- {option}")
 
 # ============================================================================
 # 整合函數

@@ -50,21 +50,8 @@ class TestSmartRecommendationsImplementation(unittest.TestCase):
     def test_3_4_1_smart_recommendations_structure(self):
         """測試3.4.1節個人化建議系統結構"""
         # 測試SMART_RECOMMENDATIONS結構
-        self.assertIn("recommendation_engine", SMART_RECOMMENDATIONS)
         self.assertIn("recommendation_templates", SMART_RECOMMENDATIONS)
-        
-        # 測試recommendation_engine規格
-        engine = SMART_RECOMMENDATIONS["recommendation_engine"]
-        required_input_factors = [
-            "investment_amount",
-            "time_horizon", 
-            "risk_tolerance_derived",
-            "strategy_performance_comparison"
-        ]
-        
-        self.assertEqual(engine["input_factors"], required_input_factors)
-        self.assertEqual(engine["output_format"], "user_friendly_advice")
-        self.assertEqual(engine["personalization"], "high")
+        self.assertIn("risk_assessment", SMART_RECOMMENDATIONS)
         
         # 測試recommendation_templates規格
         templates = SMART_RECOMMENDATIONS["recommendation_templates"]
@@ -74,23 +61,27 @@ class TestSmartRecommendationsImplementation(unittest.TestCase):
         
         # 測試va_recommended範本
         va_template = templates["va_recommended"]
-        self.assertEqual(va_template["title"], "🎯 推薦：定期定值策略")
+        self.assertEqual(va_template["title"], "🎯 建議您使用定期定值策略")
         self.assertEqual(va_template["style"], "success_card")
-        self.assertIn("amount_difference", va_template["dynamic_variables"])
-        self.assertIn("investment_period", va_template["dynamic_variables"])
+        self.assertIn("reasoning", va_template)
         
         # 測試dca_recommended範本
         dca_template = templates["dca_recommended"]
-        self.assertEqual(dca_template["title"], "💰 推薦：定期定額策略")
-        self.assertEqual(dca_template["style"], "info_card")
-        self.assertIn("final_value", dca_template["dynamic_variables"])
-        self.assertIn("annualized_return", dca_template["dynamic_variables"])
+        self.assertEqual(dca_template["title"], "💰 建議您使用定期定額策略")
+        self.assertEqual(dca_template["style"], "success_card")
+        self.assertIn("reasoning", dca_template)
         
         # 測試neutral_analysis範本
         neutral_template = templates["neutral_analysis"]
-        self.assertEqual(neutral_template["title"], "📊 策略分析")
-        self.assertEqual(neutral_template["style"], "neutral_card")
-        self.assertEqual(neutral_template["show_when"], "performance_difference < 5%")
+        self.assertEqual(neutral_template["title"], "📊 兩種策略表現相近")
+        self.assertEqual(neutral_template["style"], "info_card")
+        self.assertIn("reasoning", neutral_template)
+        
+        # 測試risk_assessment結構
+        risk_assessment = SMART_RECOMMENDATIONS["risk_assessment"]
+        self.assertIn("high_risk", risk_assessment)
+        self.assertIn("moderate_risk", risk_assessment)
+        self.assertIn("low_risk", risk_assessment)
         
         print("✅ 3.4.1節個人化建議系統結構測試通過")
     
@@ -134,11 +125,14 @@ class TestSmartRecommendationsImplementation(unittest.TestCase):
         help_section = EDUCATIONAL_CONTENT["help_section"]
         self.assertEqual(help_section["title"], "🙋‍♀️ 需要幫助？")
         
-        required_quick_links = ["📖 新手指南", "❓ 常見問題", "📞 線上客服"]
+        required_quick_links = ["📖 新手指南", "❓ 常見問題"]
         actual_quick_links = [link["text"] for link in help_section["quick_links"]]
         
         for required_link in required_quick_links:
             self.assertIn(required_link, actual_quick_links)
+        
+        # 驗證總共只有2個快速連結
+        self.assertEqual(len(help_section["quick_links"]), 2)
         
         # 測試tutorial_button規格
         tutorial_btn = help_section["tutorial_button"]
@@ -247,7 +241,7 @@ class TestSmartRecommendationsImplementation(unittest.TestCase):
         
         # 根據測試數據，應該推薦VA策略
         self.assertEqual(recommendation["recommendation_type"], "va_recommended")
-        self.assertEqual(recommendation["title"], "🎯 推薦：定期定值策略")
+        self.assertEqual(recommendation["title"], "🎯 建議您使用定期定值策略")
         
         print("✅ 建議生成邏輯測試通過")
     
@@ -266,7 +260,7 @@ class TestSmartRecommendationsImplementation(unittest.TestCase):
         va_recommendation = self.manager._prepare_va_recommendation()
         
         # 驗證推薦結構
-        self.assertEqual(va_recommendation["title"], "🎯 推薦：定期定值策略")
+        self.assertEqual(va_recommendation["title"], "🎯 建議您使用定期定值策略")
         self.assertEqual(va_recommendation["style"], "success_card")
         self.assertEqual(va_recommendation["recommendation_type"], "va_recommended")
         
@@ -291,8 +285,8 @@ class TestSmartRecommendationsImplementation(unittest.TestCase):
         dca_recommendation = self.manager._prepare_dca_recommendation()
         
         # 驗證推薦結構
-        self.assertEqual(dca_recommendation["title"], "💰 推薦：定期定額策略")
-        self.assertEqual(dca_recommendation["style"], "info_card")
+        self.assertEqual(dca_recommendation["title"], "💰 建議您使用定期定額策略")
+        self.assertEqual(dca_recommendation["style"], "success_card")
         self.assertEqual(dca_recommendation["recommendation_type"], "dca_recommended")
         
         # 驗證動態變數替換
@@ -307,13 +301,13 @@ class TestSmartRecommendationsImplementation(unittest.TestCase):
         neutral_recommendation = self.manager._prepare_neutral_recommendation()
         
         # 驗證推薦結構
-        self.assertEqual(neutral_recommendation["title"], "📊 策略分析")
-        self.assertEqual(neutral_recommendation["style"], "neutral_card")
+        self.assertEqual(neutral_recommendation["title"], "📊 兩種策略表現相近")
+        self.assertEqual(neutral_recommendation["style"], "info_card")
         self.assertEqual(neutral_recommendation["recommendation_type"], "neutral_analysis")
         
         # 驗證內容包含兩種策略優勢
-        self.assertIn("VA策略優勢", neutral_recommendation["content"])
-        self.assertIn("DCA策略優勢", neutral_recommendation["content"])
+        self.assertIn("定期定值的優勢", neutral_recommendation["content"])
+        self.assertIn("定期定額的優勢", neutral_recommendation["content"])
         
         print("✅ 中性分析準備測試通過")
     
