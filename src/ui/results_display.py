@@ -1521,7 +1521,41 @@ class ResultsDisplayManager:
             st.error(f"圖表生成錯誤: {str(e)}")
             # 降級到簡單線圖
             self._render_fallback_line_chart()
-    
+
+        # 新增：在投資流分析下方顯示策略比較摘要表格
+        st.markdown("---")  # 分隔線
+        st.markdown("#### 📊 策略比較摘要")
+        
+        try:
+            summary_df = self.calculation_results["summary_df"]
+            
+            # 應用格式化規則
+            display_df = self._apply_formatting_rules(summary_df, "SUMMARY")
+            
+            # 顯示策略比較摘要表格
+            st.dataframe(display_df, use_container_width=True, key="investment_flow_summary_table")
+            
+            # 添加摘要說明
+            st.info("💡 **摘要說明**：此表格展示兩種投資策略的詳細績效比較，包含最終價值、報酬率、風險指標等關鍵數據。")
+            
+        except Exception as e:
+            st.error(f"策略比較摘要表格生成錯誤: {str(e)}")
+            # 降級顯示基本信息
+            try:
+               final_values = self._get_final_values()
+               annualized_returns = self._get_annualized_returns()
+               
+               if final_values and annualized_returns:
+                   col1, col2 = st.columns(2)
+                   with col1:
+                       st.metric("VA策略最終價值", f"${final_values.get('va_final_value', 0):,.0f}")
+                       st.metric("VA策略年化報酬", f"{annualized_returns.get('va_annualized_return', 0):.2f}%")
+                   with col2:
+                       st.metric("DCA策略最終價值", f"${final_values.get('dca_final_value', 0):,.0f}")
+                       st.metric("DCA策略年化報酬", f"{annualized_returns.get('dca_annualized_return', 0):.2f}%")
+            except:
+               st.warning("無法顯示策略比較摘要")
+
     def _render_return_comparison_chart(self):
         """渲染報酬比較圖表 - 使用Altair符合需求文件"""
         st.markdown("**年化報酬率對比**")
@@ -1680,39 +1714,7 @@ class ResultsDisplayManager:
                else:
                    st.dataframe(dca_df[["Period", "Cum_Inv", "Cum_Value"]].head(10))
         
-        # 新增：在投資流分析下方顯示策略比較摘要表格
-        st.markdown("---")  # 分隔線
-        st.markdown("#### 📊 策略比較摘要")
-        
-        try:
-            summary_df = self.calculation_results["summary_df"]
-            
-            # 應用格式化規則
-            display_df = self._apply_formatting_rules(summary_df, "SUMMARY")
-            
-            # 顯示策略比較摘要表格
-            st.dataframe(display_df, use_container_width=True, key="investment_flow_summary_table")
-            
-            # 添加摘要說明
-            st.info("💡 **摘要說明**：此表格展示兩種投資策略的詳細績效比較，包含最終價值、報酬率、風險指標等關鍵數據。")
-            
-        except Exception as e:
-            st.error(f"策略比較摘要表格生成錯誤: {str(e)}")
-            # 降級顯示基本信息
-            try:
-               final_values = self._get_final_values()
-               annualized_returns = self._get_annualized_returns()
-               
-               if final_values and annualized_returns:
-                   col1, col2 = st.columns(2)
-                   with col1:
-                       st.metric("VA策略最終價值", f"${final_values.get('va_final_value', 0):,.0f}")
-                       st.metric("VA策略年化報酬", f"{annualized_returns.get('va_annualized_return', 0):.2f}%")
-                   with col2:
-                       st.metric("DCA策略最終價值", f"${final_values.get('dca_final_value', 0):,.0f}")
-                       st.metric("DCA策略年化報酬", f"{annualized_returns.get('dca_annualized_return', 0):.2f}%")
-            except:
-               st.warning("無法顯示策略比較摘要")
+
     
     def _render_asset_allocation_chart(self):
         """渲染資產配置圖表 - 獨立標籤頁"""
