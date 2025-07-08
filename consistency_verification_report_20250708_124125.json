@@ -1,0 +1,46 @@
+{
+  "total_tests": 5,
+  "passed_tests": 3,
+  "pass_rate": 0.6,
+  "test_details": {
+    "reproducibility": {
+      "test_name": "reproducibility",
+      "passed": "True",
+      "score": 0.3333333333333333,
+      "message": "可重現性測試：平均一致性0.333"
+    },
+    "parameter_sensitivity": {
+      "test_name": "parameter_sensitivity",
+      "passed": "False",
+      "score": 0.5249999999999999,
+      "message": "參數敏感性測試：平均評分0.525"
+    },
+    "frequency_consistency": {
+      "test_name": "frequency_consistency",
+      "passed": "False",
+      "score": 0.5,
+      "message": "頻率一致性測試：期數檢查True，品質評分0.500"
+    },
+    "temporal_stability": {
+      "test_name": "temporal_stability",
+      "passed": "True",
+      "score": 0.8454073985898765,
+      "message": "時間穩定性測試：穩定性評分0.845"
+    },
+    "statistical_properties": {
+      "test_name": "statistical_properties",
+      "passed": "True",
+      "score": 0.8,
+      "message": "統計特性測試：4/5 檢查通過",
+      "details": {
+        "mean_return": 0.04428976681062939,
+        "volatility": 0.06883305498837884,
+        "skewness": -0.8280255244342092,
+        "kurtosis": -0.755785134278872,
+        "min_return": -0.093484746860328,
+        "max_return": 0.10001019991840057
+      }
+    }
+  },
+  "overall_status": "PARTIAL_PASS"
+}

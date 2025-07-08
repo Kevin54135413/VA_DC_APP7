@@ -1,0 +1,48 @@
+{
+  "total_tests": 8,
+  "passed_tests": 8,
+  "pass_rate": 1.0,
+  "test_details": [
+    {
+      "test_name": "minimum_values",
+      "passed": true,
+      "message": "最小值測試通過"
+    },
+    {
+      "test_name": "maximum_values",
+      "passed": true,
+      "message": "最大值測試通過"
+    },
+    {
+      "test_name": "extreme_ratios",
+      "passed": true,
+      "message": "極端比例測試通過：4/4"
+    },
+    {
+      "test_name": "short_periods",
+      "passed": true,
+      "message": "短期測試通過：生成12期"
+    },
+    {
+      "test_name": "long_periods",
+      "passed": true,
+      "message": "長期測試通過：成長2.74倍"
+    },
+    {
+      "test_name": "high_frequency",
+      "passed": true,
+      "message": "高頻測試通過：平均間隔30.4天"
+    },
+    {
+      "test_name": "edge_dates",
+      "passed": true,
+      "message": "邊緣日期測試通過：首期2023-12-31"
+    },
+    {
+      "test_name": "zero_amounts",
+      "passed": true,
+      "message": "零值邊界測試通過"
+    }
+  ],
+  "overall_status": "PASS"
+}

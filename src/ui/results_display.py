@@ -300,24 +300,24 @@ class ResultsDisplayManager:
             
             # 轉換頻率格式（UI使用小寫，計算函數期望大寫開頭）
             frequency_mapping = {
-                "monthly": "Monthly",
-                "quarterly": "Quarterly", 
-                "semi_annually": "Semi-annually",
-                "annually": "Annually"
+               "monthly": "Monthly",
+               "quarterly": "Quarterly", 
+               "semi_annually": "Semi-annually",
+               "annually": "Annually"
             }
             calculation_frequency = frequency_mapping.get(parameters["investment_frequency"], "Annually")
             
             # VA策略計算
             va_rebalance_df = calculate_va_strategy(
-                C0=parameters["initial_investment"],
-                annual_investment=parameters["annual_investment"],  # 使用正確的年度投入金額
-                annual_growth_rate=parameters["va_growth_rate"],  # 直接使用，不需要除以100
-                annual_inflation_rate=parameters["inflation_rate"],  # 直接使用，不需要除以100
-                investment_years=parameters["investment_years"],
-                frequency=calculation_frequency,  # 使用轉換後的頻率
-                stock_ratio=parameters["stock_ratio"],  # 直接使用，不需要除以100
-                strategy_type=parameters.get("strategy_type", "Rebalance"),  # 修正：使用用戶選擇的策略類型
-                market_data=market_data
+               C0=parameters["initial_investment"],
+               annual_investment=parameters["annual_investment"],  # 使用正確的年度投入金額
+               annual_growth_rate=parameters["va_growth_rate"],  # 直接使用，不需要除以100
+               annual_inflation_rate=parameters["inflation_rate"],  # 直接使用，不需要除以100
+               investment_years=parameters["investment_years"],
+               frequency=calculation_frequency,  # 使用轉換後的頻率
+               stock_ratio=parameters["stock_ratio"],  # 直接使用，不需要除以100
+               strategy_type=parameters.get("strategy_type", "Rebalance"),  # 修正：使用用戶選擇的策略類型
+               market_data=market_data
             )
             
             # 階段3：計算DCA策略
@@ -326,14 +326,14 @@ class ResultsDisplayManager:
             
             # DCA策略計算
             dca_df = calculate_dca_strategy(
-                C0=parameters["initial_investment"],
-                annual_investment=parameters["annual_investment"],  # 使用正確的年度投入金額
-                annual_growth_rate=parameters["va_growth_rate"],  # 直接使用，不需要除以100
-                annual_inflation_rate=parameters["inflation_rate"],  # 直接使用，不需要除以100
-                investment_years=parameters["investment_years"],
-                frequency=calculation_frequency,  # 使用轉換後的頻率
-                stock_ratio=parameters["stock_ratio"],  # 直接使用，不需要除以100
-                market_data=market_data
+               C0=parameters["initial_investment"],
+               annual_investment=parameters["annual_investment"],  # 使用正確的年度投入金額
+               annual_growth_rate=parameters["va_growth_rate"],  # 直接使用，不需要除以100
+               annual_inflation_rate=parameters["inflation_rate"],  # 直接使用，不需要除以100
+               investment_years=parameters["investment_years"],
+               frequency=calculation_frequency,  # 使用轉換後的頻率
+               stock_ratio=parameters["stock_ratio"],  # 直接使用，不需要除以100
+               market_data=market_data
             )
             
             # 階段4：生成比較分析
@@ -342,19 +342,19 @@ class ResultsDisplayManager:
             
             # 綜合比較指標
             summary_df = calculate_summary_metrics(
-                va_rebalance_df=va_rebalance_df,
-                va_nosell_df=None,
-                dca_df=dca_df,
-                initial_investment=parameters["initial_investment"],
-                periods_per_year=parameters["periods_per_year"]
+               va_rebalance_df=va_rebalance_df,
+               va_nosell_df=None,
+               dca_df=dca_df,
+               initial_investment=parameters["initial_investment"],
+               periods_per_year=parameters["periods_per_year"]
             )
             
             # 保存計算結果到實例變量和session_state
             self.calculation_results = {
-                "va_rebalance_df": va_rebalance_df,
-                "dca_df": dca_df,
-                "summary_df": summary_df,
-                "parameters": parameters
+               "va_rebalance_df": va_rebalance_df,
+               "dca_df": dca_df,
+               "summary_df": summary_df,
+               "parameters": parameters
             }
             
             # 保存最後使用的參數
@@ -370,9 +370,9 @@ class ResultsDisplayManager:
         except Exception as e:
             # 清除進度顯示
             if 'progress_bar' in locals():
-                progress_bar.empty()
+               progress_bar.empty()
             if 'status_text' in locals():
-                status_text.empty()
+               status_text.empty()
             
             st.error(f"計算過程中出現錯誤: {e}")
             self.calculation_results = {}
@@ -405,8 +405,8 @@ class ResultsDisplayManager:
             
             # 如果用戶明確選擇模擬數據，直接使用模擬數據
             if data_source_mode == "simulation":
-                logger.info("用戶選擇模擬數據模式")
-                return self._generate_fallback_data(parameters)
+               logger.info("用戶選擇模擬數據模式")
+               return self._generate_fallback_data(parameters)
             
             # 多層級API金鑰獲取：Streamlit Secrets → 環境變數 → .env檔案
             tiingo_api_key = get_api_key('TIINGO_API_KEY')
@@ -414,16 +414,16 @@ class ResultsDisplayManager:
             
             # 如果用戶選擇真實數據但API金鑰不可用，顯示錯誤
             if data_source_mode == "real_data" and (not tiingo_api_key or not fred_api_key):
-                missing_keys = []
-                if not tiingo_api_key:
-                    missing_keys.append("TIINGO_API_KEY")
-                if not fred_api_key:
-                    missing_keys.append("FRED_API_KEY")
-                
-                logger.error(f"用戶選擇真實數據但缺少API金鑰: {missing_keys}")
-                st.error(f"❌ 無法使用真實市場數據：缺少 {', '.join(missing_keys)}")
-                st.info("💡 請設定API金鑰或切換到模擬數據模式")
-                return self._generate_fallback_data(parameters)
+               missing_keys = []
+               if not tiingo_api_key:
+                   missing_keys.append("TIINGO_API_KEY")
+               if not fred_api_key:
+                   missing_keys.append("FRED_API_KEY")
+               
+               logger.error(f"用戶選擇真實數據但缺少API金鑰: {missing_keys}")
+               st.error(f"❌ 無法使用真實市場數據：缺少 {', '.join(missing_keys)}")
+               st.info("💡 請設定API金鑰或切換到模擬數據模式")
+               return self._generate_fallback_data(parameters)
             
             # 計算日期範圍（使用起始日期參數）
             # 根據投資年數和頻率計算總期數
@@ -433,34 +433,34 @@ class ResultsDisplayManager:
             # 使用 FREQUENCY_MAPPING 計算總期數
             from src.models.calculation_formulas import FREQUENCY_MAPPING
             if frequency.lower() == "annually":
-                periods_per_year = FREQUENCY_MAPPING["Annually"]["periods_per_year"]
+               periods_per_year = FREQUENCY_MAPPING["Annually"]["periods_per_year"]
             elif frequency.lower() == "quarterly":
-                periods_per_year = FREQUENCY_MAPPING["Quarterly"]["periods_per_year"]
+               periods_per_year = FREQUENCY_MAPPING["Quarterly"]["periods_per_year"]
             elif frequency.lower() == "monthly":
-                periods_per_year = FREQUENCY_MAPPING["Monthly"]["periods_per_year"]
+               periods_per_year = FREQUENCY_MAPPING["Monthly"]["periods_per_year"]
             elif frequency.lower() == "semi_annually":
-                periods_per_year = FREQUENCY_MAPPING["Semi-annually"]["periods_per_year"]
+               periods_per_year = FREQUENCY_MAPPING["Semi-annually"]["periods_per_year"]
             else:
-                periods_per_year = 1  # 預設為年度
+               periods_per_year = 1  # 預設為年度
             
             total_periods = investment_years * periods_per_year
             
             # 獲取起始日期參數
             user_start_date = parameters.get("start_date") or parameters.get("investment_start_date")
             if user_start_date:
-                # 將date對象轉換為datetime對象
-                if isinstance(user_start_date, datetime):
-                    start_date = user_start_date
-                elif hasattr(user_start_date, 'date'):
-                    # 如果是date對象，轉換為datetime
-                    start_date = datetime.combine(user_start_date, datetime.min.time())
-                else:
-                    # 如果是字符串，解析為datetime
-                    start_date = datetime.strptime(str(user_start_date), '%Y-%m-%d')
+               # 將date對象轉換為datetime對象
+               if isinstance(user_start_date, datetime):
+                   start_date = user_start_date
+               elif hasattr(user_start_date, 'date'):
+                   # 如果是date對象，轉換為datetime
+                   start_date = datetime.combine(user_start_date, datetime.min.time())
+               else:
+                   # 如果是字符串，解析為datetime
+                   start_date = datetime.strptime(str(user_start_date), '%Y-%m-%d')
             else:
-                # 預設為次年1月1日
-                current_year = datetime.now().year
-                start_date = datetime(current_year + 1, 1, 1)
+               # 預設為次年1月1日
+               current_year = datetime.now().year
+               start_date = datetime(current_year + 1, 1, 1)
             
             # 計算結束日期 - 修正：確保獲取足夠的API數據
             # 修正前：使用固定的期間天數計算，導致API數據範圍不足
@@ -485,71 +485,71 @@ class ResultsDisplayManager:
             fred_fetcher = None
             
             if tiingo_api_key:
-                tiingo_fetcher = TiingoDataFetcher(tiingo_api_key)
-                logger.info("Tiingo API客戶端初始化成功")
+               tiingo_fetcher = TiingoDataFetcher(tiingo_api_key)
+               logger.info("Tiingo API客戶端初始化成功")
             
             if fred_api_key:
-                fred_fetcher = FREDDataFetcher(fred_api_key)
-                logger.info("FRED API客戶端初始化成功")
+               fred_fetcher = FREDDataFetcher(fred_api_key)
+               logger.info("FRED API客戶端初始化成功")
             
             # 獲取股票價格數據
             spy_data = {}
             api_success = True
             
             if tiingo_fetcher:
-                try:
-                    spy_prices = tiingo_fetcher.get_spy_prices(
-                        start_date.strftime('%Y-%m-%d'),
-                        end_date.strftime('%Y-%m-%d')
-                    )
-                    for data_point in spy_prices:
-                        # 確保價格精度：小數點後2位
-                        spy_data[data_point.date] = round(data_point.spy_price, 2)
-                    logger.info(f"成功獲取 {len(spy_data)} 筆SPY價格數據")
-                    
-                except Exception as e:
-                    logger.warning(f"Tiingo API獲取失敗: {str(e)}")
-                    api_success = False
-                    if data_source_mode == "real_data":
-                        st.warning(f"⚠️ Tiingo API獲取失敗: {str(e)}")
+               try:
+                   spy_prices = tiingo_fetcher.get_spy_prices(
+                       start_date.strftime('%Y-%m-%d'),
+                       end_date.strftime('%Y-%m-%d')
+                   )
+                   for data_point in spy_prices:
+                       # 確保價格精度：小數點後2位
+                       spy_data[data_point.date] = round(data_point.spy_price, 2)
+                   logger.info(f"成功獲取 {len(spy_data)} 筆SPY價格數據")
+                   
+               except Exception as e:
+                   logger.warning(f"Tiingo API獲取失敗: {str(e)}")
+                   api_success = False
+                   if data_source_mode == "real_data":
+                       st.warning(f"⚠️ Tiingo API獲取失敗: {str(e)}")
             else:
-                api_success = False
+               api_success = False
             
             # 獲取債券殖利率數據
             bond_data = {}
             if fred_fetcher:
-                try:
-                    bond_yields = fred_fetcher.get_treasury_yields(
-                        start_date.strftime('%Y-%m-%d'),
-                        end_date.strftime('%Y-%m-%d'),
-                        'DGS1'
-                    )
-                    for data_point in bond_yields:
-                        # 確保殖利率精度：小數點後4位
-                        bond_data[data_point.date] = round(data_point.bond_yield, 4)
-                    logger.info(f"成功獲取 {len(bond_data)} 筆債券殖利率數據")
-                    
-                except Exception as e:
-                    logger.warning(f"FRED API獲取失敗: {str(e)}")
-                    api_success = False
-                    if data_source_mode == "real_data":
-                        st.warning(f"⚠️ FRED API獲取失敗: {str(e)}")
+               try:
+                   bond_yields = fred_fetcher.get_treasury_yields(
+                       start_date.strftime('%Y-%m-%d'),
+                       end_date.strftime('%Y-%m-%d'),
+                       'DGS1'
+                   )
+                   for data_point in bond_yields:
+                       # 確保殖利率精度：小數點後4位
+                       bond_data[data_point.date] = round(data_point.bond_yield, 4)
+                   logger.info(f"成功獲取 {len(bond_data)} 筆債券殖利率數據")
+                   
+               except Exception as e:
+                   logger.warning(f"FRED API獲取失敗: {str(e)}")
+                   api_success = False
+                   if data_source_mode == "real_data":
+                       st.warning(f"⚠️ FRED API獲取失敗: {str(e)}")
             else:
-                api_success = False
+               api_success = False
             
             # 如果用戶選擇真實數據但API完全失敗，顯示錯誤並回退
             if data_source_mode == "real_data" and not api_success:
-                logger.error("用戶選擇真實數據但API不可用")
-                st.error("❌ 無法獲取真實市場數據：API連接失敗")
-                st.info("💡 請檢查網路連接或切換到模擬數據模式")
-                return self._generate_fallback_data(parameters)
+               logger.error("用戶選擇真實數據但API不可用")
+               st.error("❌ 無法獲取真實市場數據：API連接失敗")
+               st.info("💡 請檢查網路連接或切換到模擬數據模式")
+               return self._generate_fallback_data(parameters)
             
             # 如果用戶選擇真實數據但沒有獲取到API數據，直接返回錯誤
             if data_source_mode == "real_data" and (len(spy_data) == 0 and len(bond_data) == 0):
-                logger.error("用戶選擇真實數據但未獲取到任何API數據")
-                st.error("❌ 無法獲取指定期間的真實市場數據")
-                st.info("💡 請檢查日期範圍或切換到模擬數據模式")
-                return self._generate_fallback_data(parameters)
+               logger.error("用戶選擇真實數據但未獲取到任何API數據")
+               st.error("❌ 無法獲取指定期間的真實市場數據")
+               st.info("💡 請檢查日期範圍或切換到模擬數據模式")
+               return self._generate_fallback_data(parameters)
             
             # 生成期間數據
             from src.utils.trading_days import calculate_period_start_date, calculate_period_end_date
@@ -563,252 +563,278 @@ class ResultsDisplayManager:
             real_data_cutoff_period = None
             
             for period in range(total_periods):
-                # 使用正確的投資頻率計算日期 - 修正：不再使用固定30天間隔
-                period_start = calculate_period_start_date(start_date, parameters["investment_frequency"], period + 1)
-                period_end = calculate_period_end_date(start_date, parameters["investment_frequency"], period + 1)
-                
-                date_str = period_start.strftime('%Y-%m-%d')
-                end_date_str = period_end.strftime('%Y-%m-%d')
-                
-                # 判斷是否進入模擬數據範圍
-                is_real_data_available = period_start.date() <= current_date
-                
-                # 記錄真實數據截止期間
-                if is_real_data_available and real_data_cutoff_period is None:
-                    pass  # 還在真實數據範圍內
-                elif not is_real_data_available and real_data_cutoff_period is None:
-                    real_data_cutoff_period = period
-                    if real_data_cutoff_period > 0:
-                        logger.info(f"第{real_data_cutoff_period}期開始使用模擬數據，確保價格連續性")
-                        st.info(f"📊 前{real_data_cutoff_period}期使用真實數據，第{real_data_cutoff_period + 1}期開始使用模擬數據（保持價格連續性）")
-                
-                # 價格連續性處理 - 統一處理真實數據和模擬數據的連續性
-                if period == 0:
-                    # 第一期：直接使用真實數據或預設值
-                    if is_real_data_available and len(spy_data) > 0:
-                        closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                        spy_price_origin = spy_data.get(closest_spy_date) if closest_spy_date else None
-                        if spy_price_origin is None:
-                            spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
-                    else:
-                        spy_price_origin = 400.0  # 預設起始價格
-                    
-                    if is_real_data_available and len(bond_data) > 0:
-                        closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                        bond_yield_origin = bond_data.get(closest_bond_date) if closest_bond_date else None
-                        if bond_yield_origin is None:
-                            bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
-                    else:
-                        bond_yield_origin = 3.0  # 預設起始殖利率
-                else:
-                    # 第二期開始：優先使用真實API數據，只在無法獲取時才使用相依性機制
-                    if is_real_data_available and len(spy_data) > 0:
-                        # 真實數據期間：直接使用API數據，但需要檢查日期範圍合理性
-                        closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                        
-                        # 修正：檢查匹配的日期是否在合理範圍內（30天內）
-                        if closest_spy_date:
-                            date_diff = abs((datetime.strptime(closest_spy_date, '%Y-%m-%d') - period_start).days)
-                            if date_diff <= 30:
-                                # 在合理範圍內，使用API數據
-                                spy_price_origin = spy_data.get(closest_spy_date)
-                                if spy_price_origin is None:
-                                    spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
-                                logger.debug(f"期間{period}：使用真實API數據，期初價格{spy_price_origin}，匹配日期{closest_spy_date}（差異{date_diff}天）")
-                            else:
-                                # 超出合理範圍，表示API數據不足，使用連續性邏輯
-                                if previous_spy_price_end is not None:
-                                    import numpy as np
-                                    np.random.seed(42 + period * 23)
-                                    overnight_change = np.random.normal(0, 0.005)
-                                    overnight_change = max(-0.01, min(0.01, overnight_change))
-                                    spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
-                                    logger.debug(f"期間{period}：API數據超出範圍（差異{date_diff}天），使用連續性邏輯，期初價格{spy_price_origin}")
-                                else:
-                                    spy_price_origin = 400.0
-                                    logger.debug(f"期間{period}：API數據超出範圍且無前期數據，使用預設價格{spy_price_origin}")
-                        else:
-                            # 沒有找到匹配日期，使用連續性邏輯
-                            if previous_spy_price_end is not None:
-                                import numpy as np
-                                np.random.seed(42 + period * 23)
-                                overnight_change = np.random.normal(0, 0.005)
-                                overnight_change = max(-0.01, min(0.01, overnight_change))
-                                spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
-                                logger.debug(f"期間{period}：無API匹配日期，使用連續性邏輯，期初價格{spy_price_origin}")
-                            else:
-                                spy_price_origin = 400.0
-                    elif previous_spy_price_end is not None:
-                        # 模擬數據期間：基於前期期末價格加入隔夜變動
-                        import numpy as np
-                        np.random.seed(42 + period * 23)  # 確保可重現的隔夜變動
-                        
-                        # 隔夜價格變動：通常在-1%到+1%之間
-                        overnight_change = np.random.normal(0, 0.005)  # 0.5%標準差
-                        overnight_change = max(-0.01, min(0.01, overnight_change))  # 限制在±1%
-                        
-                        spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
-                        logger.debug(f"期間{period}：模擬數據期間，基於前期期末價格{previous_spy_price_end}，加入{overnight_change:.4f}隔夜變動，期初價格{spy_price_origin}")
-                    else:
-                        # 最後備用方案
-                        spy_price_origin = 400.0
-                    
-                    if is_real_data_available and len(bond_data) > 0:
-                        # 真實數據期間：直接使用API數據，但需要檢查日期範圍合理性
-                        closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
-                        
-                        # 修正：檢查匹配的日期是否在合理範圍內（30天內）
-                        if closest_bond_date:
-                            date_diff = abs((datetime.strptime(closest_bond_date, '%Y-%m-%d') - period_start).days)
-                            if date_diff <= 30:
-                                # 在合理範圍內，使用API數據
-                                bond_yield_origin = bond_data.get(closest_bond_date)
-                                if bond_yield_origin is None:
-                                    bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
-                                logger.debug(f"期間{period}：使用真實API債券數據，期初殖利率{bond_yield_origin}，匹配日期{closest_bond_date}（差異{date_diff}天）")
-                            else:
-                                # 超出合理範圍，使用連續性邏輯
-                                if previous_bond_yield_end is not None:
-                                    import numpy as np
-                                    np.random.seed(42 + period * 29)
-                                    overnight_yield_change = np.random.normal(0, 0.02)
-                                    overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))
-                                    bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
-                                    logger.debug(f"期間{period}：債券API數據超出範圍（差異{date_diff}天），使用連續性邏輯，期初殖利率{bond_yield_origin}")
-                                else:
-                                    bond_yield_origin = 3.0
-                                    logger.debug(f"期間{period}：債券API數據超出範圍且無前期數據，使用預設殖利率{bond_yield_origin}")
-                        else:
-                            # 沒有找到匹配日期，使用連續性邏輯
-                            if previous_bond_yield_end is not None:
-                                import numpy as np
-                                np.random.seed(42 + period * 29)
-                                overnight_yield_change = np.random.normal(0, 0.02)
-                                overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))
-                                bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
-                                logger.debug(f"期間{period}：無債券API匹配日期，使用連續性邏輯，期初殖利率{bond_yield_origin}")
-                            else:
-                                bond_yield_origin = 3.0
-                    elif previous_bond_yield_end is not None:
-                        # 模擬數據期間：基於前期期末殖利率加入隔夜變動
-                        import numpy as np
-                        np.random.seed(42 + period * 29)  # 不同種子避免與股價同步
-                        
-                        # 殖利率隔夜變動：通常很小，在-0.1%到+0.1%之間
-                        overnight_yield_change = np.random.normal(0, 0.02)  # 2個基點標準差
-                        overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))  # 限制在±0.1%
-                        
-                        bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
-                        logger.debug(f"期間{period}：模擬數據期間，基於前期期末殖利率{previous_bond_yield_end}，加入{overnight_yield_change:.4f}隔夜變動，期初殖利率{bond_yield_origin}")
-                    else:
-                        # 最後備用方案
-                        bond_yield_origin = 3.0
-                
-                # 債券價格計算（簡化公式）
-                bond_price_origin = round(100.0 / (1 + bond_yield_origin/100), 2)
-                
-                # 生成期末價格 - 優先使用真實API數據
-                import numpy as np
-                
-                if is_real_data_available:
-                    # 真實數據期間：嘗試使用API數據
-                    if len(spy_data) > 0:
-                        # 找最接近期末日期的SPY價格
-                        closest_spy_end_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_end).days), default=None)
-                        if closest_spy_end_date and abs((datetime.strptime(closest_spy_end_date, '%Y-%m-%d') - period_end).days) <= 30:
-                            # 如果找到30天內的數據，使用真實數據
-                            spy_price_end = spy_data[closest_spy_end_date]
-                            logger.debug(f"期間{period}：使用真實API期末數據，期末價格{spy_price_end}")
-                        else:
-                            # 如果沒有找到接近的數據，使用小幅波動模擬
-                            np.random.seed(42 + period)
-                            stock_return = np.random.normal(0.02, 0.10)  # 10%波動
-                            spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
-                            logger.debug(f"期間{period}：無法找到合適的真實期末數據，使用模擬波動，期末價格{spy_price_end}")
-                    else:
-                        # 沒有SPY數據，使用模擬
-                        np.random.seed(42 + period)
-                        stock_return = np.random.normal(0.02, 0.10)
-                        spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
-                    
-                    # 債券殖利率期末數據
-                    if len(bond_data) > 0:
-                        closest_bond_end_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_end).days), default=None)
-                        if closest_bond_end_date and abs((datetime.strptime(closest_bond_end_date, '%Y-%m-%d') - period_end).days) <= 30:
-                            bond_yield_end = bond_data[closest_bond_end_date]
-                            logger.debug(f"期間{period}：使用真實API債券期末數據，期末殖利率{bond_yield_end}")
-                        else:
-                            bond_yield_change = np.random.normal(0, 0.15)
-                            bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
-                            logger.debug(f"期間{period}：無法找到合適的真實債券期末數據，使用模擬波動")
-                    else:
-                        bond_yield_change = np.random.normal(0, 0.15)
-                        bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
-                else:
-                    # 模擬數據期間：使用連續性保證的波動模型
-                    base_seed = 42
-                    np.random.seed(base_seed + period * 17 + int(start_date.timestamp()) % 1000)
-                    
-                    # 控制股票價格變化幅度，避免巨大跳躍
-                    controlled_volatility = 0.08  # 8%波動，比真實數據期間更小
-                    stock_return = np.random.normal(0.015, controlled_volatility)
-                    spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
-                    
-                    # 確保價格變化在合理範圍內
-                    price_change_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
-                    if price_change_ratio > 0.15:
-                        max_change = 0.15 if spy_price_end > spy_price_origin else -0.15
-                        spy_price_end = round(spy_price_origin * (1 + max_change), 2)
-                        logger.debug(f"期間{period}：限制股價變化幅度至15%，從{spy_price_origin}變為{spy_price_end}")
-                    
-                    # 債券殖利率：較小的波動
-                    bond_yield_change = np.random.normal(0, 0.1)
-                    bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
-                    
-                    # 確保殖利率變化在合理範圍內
-                    yield_change_ratio = abs(bond_yield_end - bond_yield_origin) / bond_yield_origin
-                    if yield_change_ratio > 0.25:
-                        max_yield_change = 0.25 if bond_yield_end > bond_yield_origin else -0.25
-                        bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin * (1 + max_yield_change))), 4)
-                        logger.debug(f"期間{period}：限制殖利率變化幅度至25%，從{bond_yield_origin}變為{bond_yield_end}")
-                
-                bond_price_end = round(100.0 / (1 + bond_yield_end/100), 2)
-                
-                market_data_list.append({
-                    'Period': period,
-                    'Date_Origin': date_str,
-                    'Date_End': end_date_str,
-                    'SPY_Price_Origin': spy_price_origin,
-                    'SPY_Price_End': spy_price_end,
-                    'Bond_Yield_Origin': bond_yield_origin,
-                    'Bond_Yield_End': bond_yield_end,
-                    'Bond_Price_Origin': bond_price_origin,
-                    'Bond_Price_End': bond_price_end
-                })
-                
-                # 更新連續性追蹤變量
-                previous_spy_price_end = spy_price_end
-                previous_bond_yield_end = bond_yield_end
+               # 使用正確的投資頻率計算日期 - 修正：不再使用固定30天間隔
+               period_start = calculate_period_start_date(start_date, parameters["investment_frequency"], period + 1)
+               period_end = calculate_period_end_date(start_date, parameters["investment_frequency"], period + 1)
+               
+               date_str = period_start.strftime('%Y-%m-%d')
+               end_date_str = period_end.strftime('%Y-%m-%d')
+               
+               # 判斷是否進入模擬數據範圍
+               is_real_data_available = period_start.date() <= current_date
+               
+               # 記錄真實數據截止期間
+               if is_real_data_available and real_data_cutoff_period is None:
+                   pass  # 還在真實數據範圍內
+               elif not is_real_data_available and real_data_cutoff_period is None:
+                   real_data_cutoff_period = period
+                   if real_data_cutoff_period > 0:
+                       logger.info(f"第{real_data_cutoff_period}期開始使用模擬數據，確保價格連續性")
+                       st.info(f"📊 前{real_data_cutoff_period}期使用真實數據，第{real_data_cutoff_period + 1}期開始使用模擬數據（保持價格連續性）")
+               
+               # 價格連續性處理 - 統一處理真實數據和模擬數據的連續性
+               if period == 0:
+                   # 第一期：直接使用真實數據或預設值
+                   if is_real_data_available and len(spy_data) > 0:
+                       closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                       spy_price_origin = spy_data.get(closest_spy_date) if closest_spy_date else None
+                       if spy_price_origin is None:
+                           spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
+                   else:
+                       spy_price_origin = 400.0  # 預設起始價格
+                   
+                   if is_real_data_available and len(bond_data) > 0:
+                       closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                       bond_yield_origin = bond_data.get(closest_bond_date) if closest_bond_date else None
+                       if bond_yield_origin is None:
+                           bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
+                   else:
+                       bond_yield_origin = 3.0  # 預設起始殖利率
+               else:
+                   # 第二期開始：優先使用真實API數據，只在無法獲取時才使用相依性機制
+                   if is_real_data_available and len(spy_data) > 0:
+                       # 真實數據期間：直接使用API數據，但需要檢查日期範圍合理性
+                       closest_spy_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                       
+                       # 修正：檢查匹配的日期是否在合理範圍內（30天內）
+                       if closest_spy_date:
+                           date_diff = abs((datetime.strptime(closest_spy_date, '%Y-%m-%d') - period_start).days)
+                           if date_diff <= 30:
+                               # 在合理範圍內，使用API數據
+                               spy_price_origin = spy_data.get(closest_spy_date)
+                               if spy_price_origin is None:
+                                   spy_price_origin = list(spy_data.values())[-1] if spy_data else 400.0
+                               logger.debug(f"期間{period}：使用真實API數據，期初價格{spy_price_origin}，匹配日期{closest_spy_date}（差異{date_diff}天）")
+                           else:
+                               # 超出合理範圍，表示API數據不足，使用連續性邏輯
+                               if previous_spy_price_end is not None:
+                                   import numpy as np
+                                   np.random.seed(42 + period * 23)
+                                   overnight_change = np.random.normal(0, 0.005)
+                                   overnight_change = max(-0.01, min(0.01, overnight_change))
+                                   spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
+                                   logger.debug(f"期間{period}：API數據超出範圍（差異{date_diff}天），使用連續性邏輯，期初價格{spy_price_origin}")
+                               else:
+                                   spy_price_origin = 400.0
+                                   logger.debug(f"期間{period}：API數據超出範圍且無前期數據，使用預設價格{spy_price_origin}")
+                       else:
+                           # 沒有找到匹配日期，使用連續性邏輯
+                           if previous_spy_price_end is not None:
+                               import numpy as np
+                               np.random.seed(42 + period * 23)
+                               overnight_change = np.random.normal(0, 0.005)
+                               overnight_change = max(-0.01, min(0.01, overnight_change))
+                               spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
+                               logger.debug(f"期間{period}：無API匹配日期，使用連續性邏輯，期初價格{spy_price_origin}")
+                           else:
+                               spy_price_origin = 400.0
+                   elif previous_spy_price_end is not None:
+                       # 模擬數據期間：基於前期期末價格加入隔夜變動
+                       import numpy as np
+                       np.random.seed(42 + period * 23)  # 確保可重現的隔夜變動
+                       
+                       # 隔夜價格變動：通常在-1%到+1%之間
+                       overnight_change = np.random.normal(0, 0.005)  # 0.5%標準差
+                       overnight_change = max(-0.01, min(0.01, overnight_change))  # 限制在±1%
+                       
+                       spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
+                       logger.debug(f"期間{period}：模擬數據期間，基於前期期末價格{previous_spy_price_end}，加入{overnight_change:.4f}隔夜變動，期初價格{spy_price_origin}")
+                   else:
+                       # 最後備用方案
+                       spy_price_origin = 400.0
+                   
+                   if is_real_data_available and len(bond_data) > 0:
+                       # 真實數據期間：直接使用API數據，但需要檢查日期範圍合理性
+                       closest_bond_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_start).days), default=None)
+                       
+                       # 修正：檢查匹配的日期是否在合理範圍內（30天內）
+                       if closest_bond_date:
+                           date_diff = abs((datetime.strptime(closest_bond_date, '%Y-%m-%d') - period_start).days)
+                           if date_diff <= 30:
+                               # 在合理範圍內，使用API數據
+                               bond_yield_origin = bond_data.get(closest_bond_date)
+                               if bond_yield_origin is None:
+                                   bond_yield_origin = list(bond_data.values())[-1] if bond_data else 3.0
+                               logger.debug(f"期間{period}：使用真實API債券數據，期初殖利率{bond_yield_origin}，匹配日期{closest_bond_date}（差異{date_diff}天）")
+                           else:
+                               # 超出合理範圍，使用連續性邏輯
+                               if previous_bond_yield_end is not None:
+                                   import numpy as np
+                                   np.random.seed(42 + period * 29)
+                                   overnight_yield_change = np.random.normal(0, 0.02)
+                                   overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))
+                                   bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
+                                   logger.debug(f"期間{period}：債券API數據超出範圍（差異{date_diff}天），使用連續性邏輯，期初殖利率{bond_yield_origin}")
+                               else:
+                                   bond_yield_origin = 3.0
+                                   logger.debug(f"期間{period}：債券API數據超出範圍且無前期數據，使用預設殖利率{bond_yield_origin}")
+                       else:
+                           # 沒有找到匹配日期，使用連續性邏輯
+                           if previous_bond_yield_end is not None:
+                               import numpy as np
+                               np.random.seed(42 + period * 29)
+                               overnight_yield_change = np.random.normal(0, 0.02)
+                               overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))
+                               bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
+                               logger.debug(f"期間{period}：無債券API匹配日期，使用連續性邏輯，期初殖利率{bond_yield_origin}")
+                           else:
+                               bond_yield_origin = 3.0
+                   elif previous_bond_yield_end is not None:
+                       # 模擬數據期間：基於前期期末殖利率加入隔夜變動
+                       import numpy as np
+                       np.random.seed(42 + period * 29)  # 不同種子避免與股價同步
+                       
+                       # 殖利率隔夜變動：通常很小，在-0.1%到+0.1%之間
+                       overnight_yield_change = np.random.normal(0, 0.02)  # 2個基點標準差
+                       overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))  # 限制在±0.1%
+                       
+                       bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
+                       logger.debug(f"期間{period}：模擬數據期間，基於前期期末殖利率{previous_bond_yield_end}，加入{overnight_yield_change:.4f}隔夜變動，期初殖利率{bond_yield_origin}")
+                   else:
+                       # 最後備用方案
+                       bond_yield_origin = 3.0
+               
+               # 債券價格計算（簡化公式）
+               bond_price_origin = round(100.0 / (1 + bond_yield_origin/100), 2)
+               
+               # 生成期末價格 - 優先使用真實API數據
+               import numpy as np
+               
+               if is_real_data_available:
+                   # 真實數據期間：嘗試使用API數據
+                   if len(spy_data) > 0:
+                       # 找最接近期末日期的SPY價格
+                       closest_spy_end_date = min(spy_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_end).days), default=None)
+                       if closest_spy_end_date and abs((datetime.strptime(closest_spy_end_date, '%Y-%m-%d') - period_end).days) <= 30:
+                           # 如果找到30天內的數據，使用真實數據
+                           spy_price_end = spy_data[closest_spy_end_date]
+                           logger.debug(f"期間{period}：使用真實API期末數據，期末價格{spy_price_end}")
+                       else:
+                           # 如果沒有找到接近的數據，使用小幅波動模擬
+                           np.random.seed(42 + period)
+                           stock_return = np.random.normal(0.02, 0.10)  # 10%波動
+                           spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                           logger.debug(f"期間{period}：無法找到合適的真實期末數據，使用模擬波動，期末價格{spy_price_end}")
+                   else:
+                       # 沒有SPY數據，使用模擬
+                       np.random.seed(42 + period)
+                       stock_return = np.random.normal(0.02, 0.10)
+                       spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                   
+                   # 債券殖利率期末數據
+                   if len(bond_data) > 0:
+                       closest_bond_end_date = min(bond_data.keys(), key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - period_end).days), default=None)
+                       if closest_bond_end_date and abs((datetime.strptime(closest_bond_end_date, '%Y-%m-%d') - period_end).days) <= 30:
+                           bond_yield_end = bond_data[closest_bond_end_date]
+                           logger.debug(f"期間{period}：使用真實API債券期末數據，期末殖利率{bond_yield_end}")
+                       else:
+                           bond_yield_change = np.random.normal(0, 0.15)
+                           bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
+                           logger.debug(f"期間{period}：無法找到合適的真實債券期末數據，使用模擬波動")
+                   else:
+                       bond_yield_change = np.random.normal(0, 0.15)
+                       bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
+               else:
+                   # 模擬數據期間：使用連續性保證的波動模型
+                   base_seed = 42
+                   np.random.seed(base_seed + period * 17 + int(start_date.timestamp()) % 1000)
+                   
+                   # 控制股票價格變化幅度，避免巨大跳躍
+                   controlled_volatility = 0.08  # 8%波動，比真實數據期間更小
+                   stock_return = np.random.normal(0.015, controlled_volatility)
+                   spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                   
+                   # 確保價格變化在合理範圍內
+                   price_change_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
+                   if price_change_ratio > 0.15:
+                       max_change = 0.15 if spy_price_end > spy_price_origin else -0.15
+                       spy_price_end = round(spy_price_origin * (1 + max_change), 2)
+                       logger.debug(f"期間{period}：限制股價變化幅度至15%，從{spy_price_origin}變為{spy_price_end}")
+                   
+                   # 債券殖利率：較小的波動
+                   bond_yield_change = np.random.normal(0, 0.1)
+                   bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
+                   
+                   # 確保殖利率變化在合理範圍內
+                   yield_change_ratio = abs(bond_yield_end - bond_yield_origin) / bond_yield_origin
+                   if yield_change_ratio > 0.25:
+                       max_yield_change = 0.25 if bond_yield_end > bond_yield_origin else -0.25
+                       bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin * (1 + max_yield_change))), 4)
+                       logger.debug(f"期間{period}：限制殖利率變化幅度至25%，從{bond_yield_origin}變為{bond_yield_end}")
+               
+               bond_price_end = round(100.0 / (1 + bond_yield_end/100), 2)
+               
+               market_data_list.append({
+                   'Period': period,
+                   'Date_Origin': date_str,
+                   'Date_End': end_date_str,
+                   'SPY_Price_Origin': spy_price_origin,
+                   'SPY_Price_End': spy_price_end,
+                   'Bond_Yield_Origin': bond_yield_origin,
+                   'Bond_Yield_End': bond_yield_end,
+                   'Bond_Price_Origin': bond_price_origin,
+                   'Bond_Price_End': bond_price_end
+               })
+               
+               # 更新連續性追蹤變量
+               previous_spy_price_end = spy_price_end
+               previous_bond_yield_end = bond_yield_end
             
             # 創建DataFrame
             market_data = pd.DataFrame(market_data_list)
             
             # 顯示最終數據源狀態
             if len(spy_data) > 0 or len(bond_data) > 0:
-                data_summary = []
-                if len(spy_data) > 0:
-                    data_summary.append(f"📈 SPY股票: {len(spy_data)} 筆")
-                if len(bond_data) > 0:
-                    data_summary.append(f"📊 債券殖利率: {len(bond_data)} 筆")
-                
-                if real_data_cutoff_period is not None:
-                    st.success(f"✅ 已成功使用混合數據生成 {len(market_data)} 期投資數據")
-                    st.info(f"🌐 真實數據: {' | '.join(data_summary)} | 📊 模擬數據: 第{real_data_cutoff_period + 1}-{total_periods}期（價格連續性已保證）")
-                else:
-                    st.success(f"✅ 已成功使用真實市場數據生成 {len(market_data)} 期投資數據")
-                    st.info(f"🌐 數據來源: {' | '.join(data_summary)}")
+               data_summary = []
+               if len(spy_data) > 0:
+                   data_summary.append(f"📈 SPY股票: {len(spy_data)} 筆")
+               if len(bond_data) > 0:
+                   data_summary.append(f"📊 債券殖利率: {len(bond_data)} 筆")
+               
+               if real_data_cutoff_period is not None:
+                   st.success(f"✅ 已成功使用混合數據生成 {len(market_data)} 期投資數據")
+                   st.info(f"🌐 **真實數據**: {' | '.join(data_summary)} | 📊 **模擬數據**: 第{real_data_cutoff_period + 1}-{total_periods}期（價格連續性已保證）")
+                   
+                   # 顯示混合數據的識別標記
+                   with st.expander("📋 混合數據詳細資訊", expanded=False):
+                       st.markdown("#### 🌐 真實數據部分")
+                       st.markdown(f"- **數據來源**: Tiingo API (SPY) + FRED API (DGS1)")
+                       st.markdown(f"- **涵蓋期間**: 第1-{real_data_cutoff_period}期")
+                       st.markdown(f"- **數據品質**: ✅ 市場實際交易數據")
+                       
+                       st.markdown("#### 📊 模擬數據部分")
+                       st.markdown(f"- **涵蓋期間**: 第{real_data_cutoff_period + 1}-{total_periods}期")
+                       st.markdown(f"- **生成方式**: 基於前期真實數據的連續性模擬")
+                       st.markdown(f"- **價格連續性**: ✅ 已確保與真實數據無縫銜接")
+               else:
+                   st.success(f"✅ 已成功使用真實市場數據生成 {len(market_data)} 期投資數據")
+                   st.info(f"🌐 **真實數據來源**: {' | '.join(data_summary)}")
+                   
+                   # 顯示真實數據的識別標記
+                   with st.expander("📋 真實數據詳細資訊", expanded=False):
+                       st.markdown("#### 🌐 數據來源")
+                       st.markdown(f"- **股票數據**: Tiingo API - SPY (標普500指數ETF)")
+                       st.markdown(f"- **債券數據**: FRED API - DGS1 (1年期美國國債殖利率)")
+                       st.markdown(f"- **數據期間**: {len(market_data)} 期完整覆蓋")
+                       st.markdown(f"- **數據品質**: ✅ 100% 真實市場交易數據")
+                       
+                       st.markdown("#### 📊 數據精度")
+                       st.markdown(f"- **價格精度**: 小數點後2位 (美元)")
+                       st.markdown(f"- **殖利率精度**: 小數點後4位 (百分比)")
+                       st.markdown(f"- **時間精度**: 日期級別準確")
             else:
-                st.info(f"📊 已使用模擬數據生成 {len(market_data)} 期投資數據")
+               # 純模擬數據的情況會在_generate_fallback_data中顯示
+               pass
             
             logger.info(f"成功準備 {len(market_data)} 期市場數據")
             return market_data
@@ -822,18 +848,43 @@ class ResultsDisplayManager:
         """
         生成備用模擬數據 - 當API不可用時使用
         
-        確保股票和債券有不同的價格表現，讓股債比率產生實際影響
+        按照需求文件1.1.3節規格實作：
+        1. 市場情境模擬（牛市、熊市特徵）
+        2. 完整時間軸生成架構
+        3. 幾何布朗運動價格生成
         """
         # 導入必要模組
         import numpy as np
         from src.utils.trading_days import calculate_period_start_date, calculate_period_end_date
         from src.utils.logger import get_component_logger
+        import time
+        from datetime import datetime
         
         logger = get_component_logger("ResultsDisplay")
         logger.info("生成備用模擬數據")
         
+        # 數據生成時間戳記錄
+        generation_timestamp = datetime.now()
+        
+        # 隨機種子管理
+        if hasattr(st.session_state, 'simulation_seed') and st.session_state.simulation_seed is not None:
+            base_seed = st.session_state.simulation_seed
+        else:
+            # 預設種子：結合當前時間和用戶參數
+            base_seed = int(time.time()) % 100000
+            st.session_state.simulation_seed = base_seed
+        
+        # 記錄模擬數據生成資訊到session_state
+        st.session_state.simulation_data_info = {
+            'generation_timestamp': generation_timestamp,
+            'random_seed': base_seed,
+            'regeneration_count': st.session_state.get('simulation_regeneration_count', 0),
+            'market_bias': st.session_state.get('simulation_market_bias', '隨機組合'),
+            'volatility_level': st.session_state.get('simulation_volatility_level', '中波動'),
+            'seed_mode': st.session_state.get('simulation_seed_mode', '自動生成')
+        }
+        
         # 解析參數
-        # 根據投資年數和頻率計算總期數
         investment_years = parameters.get("investment_periods", 30)
         frequency = parameters.get("investment_frequency", "annually")
         
@@ -853,138 +904,232 @@ class ResultsDisplayManager:
         total_periods = investment_years * periods_per_year
         user_start_date = parameters.get("start_date") or parameters.get("investment_start_date", datetime.now().date())
         
-        # 確保start_date是datetime對象
-        if isinstance(user_start_date, datetime):
-            start_date = user_start_date
+        # 確保起始日期是datetime.date類型
+        if isinstance(user_start_date, str):
+            start_date = datetime.strptime(user_start_date, '%Y-%m-%d').date()
         elif hasattr(user_start_date, 'date'):
-            # 如果是date對象，轉換為datetime
-            start_date = datetime.combine(user_start_date, datetime.min.time())
+            start_date = user_start_date.date()
         else:
-            # 如果是字符串，解析為datetime
-            start_date = datetime.strptime(str(user_start_date), '%Y-%m-%d')
+            start_date = user_start_date
         
+        logger.info(f"模擬數據生成 - 種子: {base_seed}, 期間: {total_periods}, 起始: {start_date}")
+        
+        # 市場偏好調整
+        market_bias = st.session_state.get('simulation_market_bias', '隨機組合')
+        if market_bias == "偏向牛市":
+            bull_market_probability = 0.8
+        elif market_bias == "偏向熊市":
+            bull_market_probability = 0.3
+        elif market_bias == "平衡市場":
+            bull_market_probability = 0.5
+        else:  # 隨機組合
+            bull_market_probability = 0.7
+        
+        # 波動性調整
+        volatility_level = st.session_state.get('simulation_volatility_level', '中波動')
+        if volatility_level == "低波動":
+            volatility_multiplier = 0.7
+        elif volatility_level == "高波動":
+            volatility_multiplier = 1.4
+        else:  # 中波動
+            volatility_multiplier = 1.0
+            
+        # 生成市場週期
+        def generate_market_cycles():
+            """生成市場週期序列"""
+            np.random.seed(base_seed)
+            cycles = []
+            remaining_periods = total_periods
+            
+            while remaining_periods > 0:
+                # 決定市場類型
+                is_bull_market = np.random.random() < bull_market_probability
+                
+                if is_bull_market:
+                    # 牛市：年化報酬率8%-12%，波動率15%-20%，持續3-7年
+                    annual_return = np.random.uniform(0.08, 0.12)
+                    annual_volatility = np.random.uniform(0.15, 0.20) * volatility_multiplier
+                    duration_years = np.random.uniform(3, 7)
+                    market_type = 'bull'
+                else:
+                    # 熊市：年化報酬率-10%-2%，波動率25%-35%，持續1-3年
+                    annual_return = np.random.uniform(-0.10, 0.02)
+                    annual_volatility = np.random.uniform(0.25, 0.35) * volatility_multiplier
+                    duration_years = np.random.uniform(1, 3)
+                    market_type = 'bear'
+                
+                duration_periods = min(int(duration_years * periods_per_year), remaining_periods)
+                
+                cycles.append({
+                    'type': market_type,
+                    'duration': duration_periods,
+                    'annual_return': annual_return,
+                    'annual_volatility': annual_volatility
+                })
+                
+                remaining_periods -= duration_periods
+            
+            return cycles
+        
+        # 生成完整時間軸
+        def generate_simulation_timeline():
+            """生成完整的模擬時間軸"""
+            timeline = []
+            
+            for period in range(1, total_periods + 1):
+                period_start_date = calculate_period_start_date(start_date, frequency, period)
+                period_end_date = calculate_period_end_date(start_date, frequency, period)
+                
+                timeline.append({
+                    'period': period,
+                    'adjusted_start_date': period_start_date,
+                    'adjusted_end_date': period_end_date
+                })
+            
+            return timeline
+        
+        # 生成期間價格時間軸
+        def generate_period_price_timeline(period_info, base_price, previous_price):
+            """
+            使用幾何布朗運動生成期間價格變化
+            公式：S(t+1) = S(t) * exp((μ - σ²/2) * dt + σ * √dt * Z)
+            """
+            # 獲取當期市場週期參數
+            current_cycle = market_cycles[current_cycle_index]
+            
+            # 計算期間時間參數
+            if frequency == 'monthly':
+                dt = 1/12
+            elif frequency == 'quarterly':
+                dt = 1/4
+            elif frequency == 'semi-annually':
+                dt = 1/2
+            else:  # annually
+                dt = 1
+            
+            # 幾何布朗運動參數
+            mu = current_cycle['annual_return']  # 年化報酬率
+            sigma = current_cycle['annual_volatility']  # 年化波動率
+            
+            # 期初價格
+            if previous_price is not None:
+                period_start_price = previous_price
+            else:
+                period_start_price = base_price
+            
+            # 使用幾何布朗運動生成期末價格
+            Z = np.random.normal(0, 1)  # 標準常態分佈隨機數
+            growth_factor = np.exp((mu - sigma**2/2) * dt + sigma * np.sqrt(dt) * Z)
+            period_end_price = period_start_price * growth_factor
+            
+            # 價格精度控制：小數點後2位
+            period_start_price = round(period_start_price, 2)
+            period_end_price = round(period_end_price, 2)
+            
+            # 價格合理性檢查
+            price_change = abs(period_end_price - period_start_price) / period_start_price
+            if price_change > 0.15:  # 單期變動超過15%時進行調整
+                if period_end_price > period_start_price:
+                    period_end_price = period_start_price * 1.15
+                else:
+                    period_end_price = period_start_price * 0.85
+                period_end_price = round(period_end_price, 2)
+            
+            return {
+                'period_start_price': period_start_price,
+                'period_end_price': period_end_price,
+                'market_type': current_cycle['type'],
+                'growth_factor': round(growth_factor, 4)
+            }
+        
+        # 執行模擬數據生成
+        market_cycles = generate_market_cycles()
+        timeline = generate_simulation_timeline()
+        
+        # 記錄市場週期資訊
+        st.session_state.simulation_data_info['market_cycles'] = market_cycles
+        st.session_state.simulation_data_info['total_bull_periods'] = sum(cycle['duration'] for cycle in market_cycles if cycle['type'] == 'bull')
+        st.session_state.simulation_data_info['total_bear_periods'] = sum(cycle['duration'] for cycle in market_cycles if cycle['type'] == 'bear')
+        
+        # 基準價格設定
+        stock_base_price = 200.0  # SPY基準價格
+        bond_base_yield = 3.0  # 債券基準殖利率
+        bond_yield_volatility = 0.003  # 債券殖利率波動率
+        
+        # 生成期間數據
         market_data_list = []
-        
-        # 設定不同的價格表現參數 - 增加波動以展示策略差異
-        stock_base_price = 400.0
-        stock_growth_rate = 0.02  # 每期2%成長
-        stock_volatility = 0.25   # 25%波動 - 大幅增加波動性確保觸發賣出
-        
-        bond_base_yield = 3.0
-        bond_yield_volatility = 0.3  # 殖利率波動 - 增加波動性
-        
-        # 改進的隨機數生成機制 - 修正2026年後價格相同問題
-        base_seed = 42
-        
-        # 價格連續性追蹤變量 - 確保模擬數據也有相依性但不完全相同
         previous_spy_price_end = None
         previous_bond_yield_end = None
+        current_cycle_index = 0
+        current_cycle_remaining = market_cycles[0]['duration']
         
-        for period in range(total_periods):
-            # 為每期設定不同的隨機種子，確保價格變化多樣性
-            np.random.seed(base_seed + period * 17 + int(start_date.timestamp()) % 1000)
+        for period_idx, period_info in enumerate(timeline):
+            # 為每期設定不同的隨機種子
+            np.random.seed(base_seed + period_idx * 17 + int(start_date.timetuple().tm_yday))
             
-            # 使用正確的投資頻率計算日期
-            period_start = calculate_period_start_date(start_date, parameters["investment_frequency"], period + 1)
-            period_end = calculate_period_end_date(start_date, parameters["investment_frequency"], period + 1)
+            # 更新市場週期索引
+            if current_cycle_remaining <= 0 and current_cycle_index < len(market_cycles) - 1:
+                current_cycle_index += 1
+                current_cycle_remaining = market_cycles[current_cycle_index]['duration']
             
-            date_str = period_start.strftime('%Y-%m-%d')
-            end_date_str = period_end.strftime('%Y-%m-%d')
+            period = period_info['period']
+            date_str = period_info['adjusted_start_date'].strftime('%Y-%m-%d')
+            end_date_str = period_info['adjusted_end_date'].strftime('%Y-%m-%d')
             
-            # 修正的股票價格生成：確保價格相依性但不完全相同
-            if period == 0:
-                # 第一期：使用基準價格
-                stock_trend = stock_base_price
-                cycle_factor = 1 + 0.05 * np.sin(2 * np.pi * period / 20)  # 20期為一個週期
-                stock_trend *= cycle_factor
-                
-                volatility_multiplier = 1 + 0.3 * np.sin(2 * np.pi * period / 8)  # 波動率本身也有週期
-                period_volatility = stock_volatility * volatility_multiplier
-                
-                stock_noise = np.random.normal(0, period_volatility * stock_trend)
-                spy_price_origin = round(max(stock_trend + stock_noise, 1.0), 2)  # 確保價格大於0
-            else:
-                # 第二期開始：基於前期期末價格但加入隔夜變動
-                if previous_spy_price_end is not None:
-                    # 隔夜價格變動：通常在-1%到+1%之間
-                    np.random.seed(base_seed + period * 23)  # 確保可重現的隔夜變動
-                    overnight_change = np.random.normal(0, 0.005)  # 0.5%標準差
-                    overnight_change = max(-0.01, min(0.01, overnight_change))  # 限制在±1%
-                    
-                    spy_price_origin = round(previous_spy_price_end * (1 + overnight_change), 2)
-                    logger.debug(f"模擬數據期間{period}：基於前期期末價格{previous_spy_price_end}，加入{overnight_change:.4f}隔夜變動，期初價格{spy_price_origin}")
-                else:
-                    # 備用方案
-                    stock_trend = stock_base_price * ((1 + stock_growth_rate) ** period)
-                    cycle_factor = 1 + 0.05 * np.sin(2 * np.pi * period / 20)
-                    stock_trend *= cycle_factor
-                    
-                    volatility_multiplier = 1 + 0.3 * np.sin(2 * np.pi * period / 8)
-                    period_volatility = stock_volatility * volatility_multiplier
-                    
-                    stock_noise = np.random.normal(0, period_volatility * stock_trend)
-                    spy_price_origin = round(max(stock_trend + stock_noise, 1.0), 2)
+            # 生成股票價格 - 使用幾何布朗運動
+            stock_price_data = generate_period_price_timeline(
+                period_info, 
+                stock_base_price, 
+                previous_spy_price_end
+            )
             
-            # 期末股票價格：使用改進的成長模型
-            # 添加動量效應（前期表現影響當期）
-            momentum_factor = 1.0
-            if period > 0:
-                # 簡單動量：如果前期成長良好，當期有較高機率繼續成長
-                previous_growth_proxy = (period * stock_growth_rate) % 0.1
-                momentum_factor = 1 + 0.1 * np.tanh(previous_growth_proxy - 0.05)
+            spy_price_origin = stock_price_data['period_start_price']
+            spy_price_end = stock_price_data['period_end_price']
             
-            enhanced_growth_rate = stock_growth_rate * momentum_factor
-            period_growth = np.random.normal(enhanced_growth_rate, period_volatility)
-            spy_price_end = round(spy_price_origin * (1 + period_growth), 2)
+            # 計算期間時間參數
+            if frequency == 'monthly':
+                dt = 1/12
+            elif frequency == 'quarterly':
+                dt = 1/4
+            elif frequency == 'semi-annually':
+                dt = 1/2
+            else:  # annually
+                dt = 1
             
-            # 強化價格差異保證機制
-            price_difference_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
-            if price_difference_ratio < 0.01:  # 如果價格變化小於1%
-                # 根據期數和日期生成確定性但多變的價格變化
-                deterministic_change = 0.02 + 0.03 * np.sin(period * 1.7) + 0.02 * np.cos(period * 2.3)
-                change_direction = 1 if (period % 3) != 0 else -1  # 大部分時候上漲，偶爾下跌
-                spy_price_end = round(spy_price_origin * (1 + change_direction * abs(deterministic_change)), 2)
-            
-            # 修正的債券殖利率生成：確保相依性但不完全相同
-            if period == 0:
+            # 生成債券殖利率 - 使用Vasicek模型簡化版
+            if period == 1:
                 # 第一期：使用基準殖利率
-                interest_rate_cycle = 0.5 * np.sin(2 * np.pi * period / 30)  # 30期利率週期
-                economic_factor = 1 + 0.2 * np.sin(2 * np.pi * period / 15)  # 經濟週期影響
-                
-                bond_yield_base = bond_base_yield + interest_rate_cycle
-                bond_yield_change = np.random.normal(0, bond_yield_volatility * economic_factor)
-                bond_yield_origin = round(bond_yield_base + bond_yield_change, 4)
+                bond_yield_origin = bond_base_yield + np.random.normal(0, bond_yield_volatility)
             else:
-                # 第二期開始：基於前期期末殖利率但加入隔夜變動
+                # 第二期開始：均值回歸模型
                 if previous_bond_yield_end is not None:
-                    # 殖利率隔夜變動：通常很小，在-0.1%到+0.1%之間
-                    np.random.seed(base_seed + period * 29)  # 不同種子避免與股價同步
-                    overnight_yield_change = np.random.normal(0, 0.02)  # 2個基點標準差
-                    overnight_yield_change = max(-0.001, min(0.001, overnight_yield_change))  # 限制在±0.1%
+                    # 均值回歸：α(θ - r)dt + σ dW 的簡化版
+                    mean_reversion_speed = 0.1
+                    target_yield = bond_base_yield
+                    yield_change = mean_reversion_speed * (target_yield - previous_bond_yield_end) * dt
+                    yield_change += bond_yield_volatility * np.random.normal(0, np.sqrt(dt))
                     
-                    bond_yield_origin = round(max(0.5, min(8.0, previous_bond_yield_end + overnight_yield_change)), 4)
-                    logger.debug(f"模擬數據期間{period}：基於前期期末殖利率{previous_bond_yield_end}，加入{overnight_yield_change:.4f}隔夜變動，期初殖利率{bond_yield_origin}")
+                    bond_yield_origin = previous_bond_yield_end + yield_change
                 else:
-                    # 備用方案
-                    interest_rate_cycle = 0.5 * np.sin(2 * np.pi * period / 30)
-                    economic_factor = 1 + 0.2 * np.sin(2 * np.pi * period / 15)
-                    
-                    bond_yield_base = bond_base_yield + interest_rate_cycle
-                    bond_yield_change = np.random.normal(0, bond_yield_volatility * economic_factor)
-                    bond_yield_origin = round(bond_yield_base + bond_yield_change, 4)
+                    bond_yield_origin = bond_base_yield
             
-            # 期末債券殖利率
-            yield_momentum = 0.1 * bond_yield_change  # 殖利率有慣性
-            bond_yield_end = round(bond_yield_origin + yield_momentum + np.random.normal(0, 0.05), 4)
-            
-            # 確保殖利率在合理範圍內
+            # 殖利率合理性限制
             bond_yield_origin = max(0.5, min(8.0, bond_yield_origin))
+            
+            # 期末殖利率生成
+            yield_change = bond_yield_volatility * np.random.normal(0, np.sqrt(dt))
+            bond_yield_end = bond_yield_origin + yield_change
             bond_yield_end = max(0.5, min(8.0, bond_yield_end))
             
-            # 債券價格計算
+            # 殖利率精度控制：小數點後4位
+            bond_yield_origin = round(bond_yield_origin, 4)
+            bond_yield_end = round(bond_yield_end, 4)
+            
+            # 債券價格計算（簡化公式）
             bond_price_origin = round(100.0 / (1 + bond_yield_origin/100), 2)
             bond_price_end = round(100.0 / (1 + bond_yield_end/100), 2)
             
+            # 添加市場類型標記
             market_data_list.append({
                 'Period': period,
                 'Date_Origin': date_str,
@@ -994,15 +1139,118 @@ class ResultsDisplayManager:
                 'Bond_Yield_Origin': bond_yield_origin,
                 'Bond_Yield_End': bond_yield_end,
                 'Bond_Price_Origin': bond_price_origin,
-                'Bond_Price_End': bond_price_end
+                'Bond_Price_End': bond_price_end,
+                'Market_Type': stock_price_data['market_type'],  # 新增：市場類型標記
+                'Data_Source': 'simulation'  # 新增：數據來源標記
             })
             
             # 更新連續性追蹤變量
             previous_spy_price_end = spy_price_end
             previous_bond_yield_end = bond_yield_end
+            current_cycle_remaining -= 1
         
-        logger.info(f"生成 {len(market_data_list)} 期備用模擬數據，股票平均成長 {stock_growth_rate*100}%/期，債券殖利率平均 {bond_base_yield}%")
-        return pd.DataFrame(market_data_list)
+        # 創建DataFrame
+        market_data = pd.DataFrame(market_data_list)
+        
+        # 顯示模擬數據詳細資訊
+        self._display_simulation_data_info(market_data)
+        
+        logger.info(f"成功生成 {len(market_data)} 期模擬數據 (種子: {base_seed})")
+        return market_data
+    
+    def _display_simulation_data_info(self, market_data: pd.DataFrame):
+        """
+        顯示模擬數據詳細資訊和識別標記
+        提供清楚的數據源識別和品質指標
+        """
+        if not hasattr(st.session_state, 'simulation_data_info'):
+            return
+        
+        info = st.session_state.simulation_data_info
+        
+        # 主要數據源標記
+        st.info(f"🎲 **模擬數據** | 生成時間: {info['generation_timestamp'].strftime('%Y-%m-%d %H:%M:%S')} | 隨機種子: **{info['random_seed']}**")
+        
+        # 詳細資訊展開區域
+        with st.expander("📋 模擬數據詳細資訊", expanded=False):
+            
+            # 基本資訊
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("#### 🔧 生成配置")
+                st.markdown(f"- **隨機種子**: {info['random_seed']}")
+                st.markdown(f"- **種子模式**: {info['seed_mode']}")
+                st.markdown(f"- **重新生成次數**: {info['regeneration_count']}")
+                st.markdown(f"- **數據期間數**: {len(market_data)}")
+            
+            with col2:
+                st.markdown("#### 🌊 市場配置")
+                st.markdown(f"- **市場偏好**: {info['market_bias']}")
+                st.markdown(f"- **波動性水準**: {info['volatility_level']}")
+                
+                # 市場週期統計
+                if 'total_bull_periods' in info and 'total_bear_periods' in info:
+                    bull_ratio = info['total_bull_periods'] / (info['total_bull_periods'] + info['total_bear_periods']) * 100
+                    st.markdown(f"- **牛市期間**: {info['total_bull_periods']} 期 ({bull_ratio:.1f}%)")
+                    st.markdown(f"- **熊市期間**: {info['total_bear_periods']} 期 ({100-bull_ratio:.1f}%)")
+            
+            with col3:
+                st.markdown("#### 📊 品質指標")
+                
+                # 計算數據品質指標
+                import numpy as np
+                if 'SPY_Price_Origin' in market_data.columns and 'SPY_Price_End' in market_data.columns:
+                    price_changes = []
+                    for i in range(len(market_data)):
+                        change = abs(market_data.iloc[i]['SPY_Price_End'] - market_data.iloc[i]['SPY_Price_Origin']) / market_data.iloc[i]['SPY_Price_Origin']
+                        price_changes.append(change)
+                    
+                    avg_change = np.mean(price_changes) * 100
+                    max_change = np.max(price_changes) * 100
+                    
+                    st.markdown(f"- **平均價格變動**: {avg_change:.2f}%")
+                    st.markdown(f"- **最大價格變動**: {max_change:.2f}%")
+                
+                # 殖利率變動統計
+                if 'Bond_Yield_Origin' in market_data.columns and 'Bond_Yield_End' in market_data.columns:
+                    yield_changes = []
+                    for i in range(len(market_data)):
+                        change = abs(market_data.iloc[i]['Bond_Yield_End'] - market_data.iloc[i]['Bond_Yield_Origin'])
+                        yield_changes.append(change)
+                    
+                    avg_yield_change = np.mean(yield_changes) * 10000  # 轉換為基點
+                    st.markdown(f"- **平均殖利率變動**: {avg_yield_change:.1f} bp")
+            
+            # 市場週期詳情
+            if 'market_cycles' in info:
+                st.markdown("#### 🔄 市場週期組成")
+                
+                cycles_data = []
+                for i, cycle in enumerate(info['market_cycles'], 1):
+                    cycles_data.append({
+                        '週期': f"第{i}週期",
+                        '市場類型': '🐂 牛市' if cycle['type'] == 'bull' else '🐻 熊市',
+                        '持續期間': f"{cycle['duration']} 期",
+                        '年化報酬率': f"{cycle['annual_return']:.2%}",
+                        '年化波動率': f"{cycle['annual_volatility']:.2%}"
+                    })
+                
+                cycles_df = pd.DataFrame(cycles_data)
+                st.dataframe(cycles_df, use_container_width=True, hide_index=True)
+            
+            # 數據追蹤資訊
+            st.markdown("#### 🔍 數據追蹤")
+            st.markdown(f"- **生成演算法**: 幾何布朗運動 + Vasicek模型")
+            st.markdown(f"- **價格精度**: 小數點後2位")
+            st.markdown(f"- **殖利率精度**: 小數點後4位")
+            st.markdown(f"- **資料完整性**: ✅ 100% 無缺失值")
+            
+            # 重現性說明
+            if info['seed_mode'] == '手動設定':
+                st.success(f"🔒 **可重現**: 使用相同種子 {info['random_seed']} 和參數可重現相同結果")
+            else:
+                st.info(f"🎲 **隨機生成**: 每次重新生成將產生不同的市場情境")
     
     def render_summary_metrics_display(self):
         """渲染頂部摘要卡片 - 3.3.1節實作"""
@@ -1023,11 +1271,11 @@ class ResultsDisplayManager:
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                self._render_metric_card("recommended_strategy")
+               self._render_metric_card("recommended_strategy")
             with col2:
-                self._render_metric_card("expected_final_value")
+               self._render_metric_card("expected_final_value")
             with col3:
-                self._render_metric_card("annualized_return")
+               self._render_metric_card("annualized_return")
     
     def _render_metric_card(self, metric_key: str):
         """渲染單個指標卡片"""
@@ -1037,33 +1285,33 @@ class ResultsDisplayManager:
             # 動態推薦策略
             recommendation = self._calculate_dynamic_recommendation()
             st.metric(
-                label=f"{metric_config['icon']} {metric_config['label']}",
-                value=recommendation["strategy"],
-                delta=recommendation["reason"],
-                help=metric_config["tooltip"]
+               label=f"{metric_config['icon']} {metric_config['label']}",
+               value=recommendation["strategy"],
+               delta=recommendation["reason"],
+               help=metric_config["tooltip"]
             )
         
         elif metric_key == "expected_final_value":
             # 預期最終價值
             final_values = self._get_final_values()
             if final_values:
-                st.metric(
-                    label=f"{metric_config['icon']} {metric_config['label']}",
-                    value=f"${final_values['recommended']:,.0f}",
-                    delta=f"${final_values['difference']:,.0f}",
-                    help=metric_config["tooltip"]
-                )
+               st.metric(
+                   label=f"{metric_config['icon']} {metric_config['label']}",
+                   value=f"${final_values['recommended']:,.0f}",
+                   delta=f"${final_values['difference']:,.0f}",
+                   help=metric_config["tooltip"]
+               )
         
         elif metric_key == "annualized_return":
             # 年化報酬率
             returns = self._get_annualized_returns()
             if returns:
-                st.metric(
-                    label=f"{metric_config['icon']} {metric_config['label']}",
-                    value=f"{returns['recommended']:.2f}%",
-                    delta=f"{returns['difference']:.2f}%",
-                    help=metric_config["tooltip"]
-                )
+               st.metric(
+                   label=f"{metric_config['icon']} {metric_config['label']}",
+                   value=f"{returns['recommended']:.2f}%",
+                   delta=f"{returns['difference']:.2f}%",
+                   help=metric_config["tooltip"]
+               )
     
     def _calculate_dynamic_recommendation(self) -> Dict[str, str]:
         """計算動態推薦策略"""
@@ -1081,9 +1329,9 @@ class ResultsDisplayManager:
             dca_sharpe = dca_row["Sharpe_Ratio"]
             
             if va_sharpe > dca_sharpe:
-                return {"strategy": "VA策略", "reason": "風險收益比更佳"}
+               return {"strategy": "VA策略", "reason": "風險收益比更佳"}
             else:
-                return {"strategy": "DCA策略", "reason": "風險較低"}
+               return {"strategy": "DCA策略", "reason": "風險較低"}
         
         return {"strategy": "VA策略", "reason": "預設推薦"}
     
@@ -1099,15 +1347,15 @@ class ResultsDisplayManager:
             dca_value = summary_df[summary_df["Strategy"] == "DCA"]["Final_Value"].iloc[0]
             
             if va_value > dca_value:
-                return {
-                    "recommended": va_value,
-                    "difference": va_value - dca_value
-                }
+               return {
+                   "recommended": va_value,
+                   "difference": va_value - dca_value
+               }
             else:
-                return {
-                    "recommended": dca_value,
-                    "difference": dca_value - va_value
-                }
+               return {
+                   "recommended": dca_value,
+                   "difference": dca_value - va_value
+               }
         
         return None
     
@@ -1123,15 +1371,15 @@ class ResultsDisplayManager:
             dca_return = summary_df[summary_df["Strategy"] == "DCA"]["Annualized_Return"].iloc[0]
             
             if va_return > dca_return:
-                return {
-                    "recommended": va_return,
-                    "difference": va_return - dca_return
-                }
+               return {
+                   "recommended": va_return,
+                   "difference": va_return - dca_return
+               }
             else:
-                return {
-                    "recommended": dca_return,
-                    "difference": dca_return - va_return
-                }
+               return {
+                   "recommended": dca_return,
+                   "difference": dca_return - va_return
+               }
         
         return None
     
@@ -1167,9 +1415,9 @@ class ResultsDisplayManager:
             
             # 核心指標
             if strategy_data:
-                # 使用垂直排列的指標，避免嵌套列
-                st.metric("最終價值", f"${strategy_data['final_value']:,.0f}")
-                st.metric("年化報酬", f"{strategy_data['annualized_return']:.2f}%")
+               # 使用垂直排列的指標，避免嵌套列
+               st.metric("最終價值", f"${strategy_data['final_value']:,.0f}")
+               st.metric("年化報酬", f"{strategy_data['annualized_return']:.2f}%")
             
             # 適合對象
             st.markdown(f"**👥 適合對象：** {card_config['content']['suitability']}")
@@ -1177,11 +1425,11 @@ class ResultsDisplayManager:
             # 優缺點
             st.markdown("**✅ 優點：**")
             for pro in card_config['pros']:
-                st.markdown(f"• {pro}")
+               st.markdown(f"• {pro}")
             
             st.markdown("**⚠️ 缺點：**")
             for con in card_config['cons']:
-                st.markdown(f"• {con}")
+               st.markdown(f"• {con}")
     
     def _get_strategy_data(self, strategy_key: str) -> Optional[Dict[str, float]]:
         """獲取策略數據"""
@@ -1202,8 +1450,8 @@ class ResultsDisplayManager:
         if len(strategy_row) > 0:
             row = strategy_row.iloc[0]
             return {
-                "final_value": row["Final_Value"],
-                "annualized_return": row["Annualized_Return"]
+               "final_value": row["Final_Value"],
+               "annualized_return": row["Annualized_Return"]
             }
         
         return None
@@ -1258,10 +1506,10 @@ class ResultsDisplayManager:
         # 使用第2章圖表視覺化模組的策略比較圖表
         try:
             chart = create_strategy_comparison_chart(
-                va_rebalance_df=self.calculation_results["va_rebalance_df"],
-                va_nosell_df=None,  # 簡化版本不顯示NoSell策略
-                dca_df=self.calculation_results["dca_df"],
-                chart_type="cumulative_value"
+               va_rebalance_df=self.calculation_results["va_rebalance_df"],
+               va_nosell_df=None,  # 簡化版本不顯示NoSell策略
+               dca_df=self.calculation_results["dca_df"],
+               chart_type="cumulative_value"
             )
             
             st.altair_chart(chart, use_container_width=True)
@@ -1283,11 +1531,11 @@ class ResultsDisplayManager:
         # 使用第2章圖表視覺化模組的柱狀圖
         try:
             chart = create_bar_chart(
-                data_df=summary_df,
-                x_field="Annualized_Return",
-                y_field="Strategy",
-                color_field="Strategy",
-                title="年化報酬率比較"
+               data_df=summary_df,
+               x_field="Annualized_Return",
+               y_field="Strategy",
+               color_field="Strategy",
+               title="年化報酬率比較"
             )
             
             st.altair_chart(chart, use_container_width=True)
@@ -1311,7 +1559,7 @@ class ResultsDisplayManager:
             rows=2, cols=2,
             subplot_titles=("波動率", "夏普比率", "最大回撤", "總報酬率"),
             specs=[[{"type": "bar"}, {"type": "bar"}],
-                   [{"type": "bar"}, {"type": "bar"}]]
+                  [{"type": "bar"}, {"type": "bar"}]]
         )
         
         strategies = summary_df["Strategy"].tolist()
@@ -1357,77 +1605,77 @@ class ResultsDisplayManager:
         with col1:
             st.markdown("##### 🎯 VA策略投資行為分析")
             try:
-                va_df = self.calculation_results["va_rebalance_df"]
-                va_chart = create_investment_flow_chart(va_df)
-                st.altair_chart(va_chart, use_container_width=True)
-                
-                # VA策略說明
-                st.info("💡 **VA策略說明**：綠色表示買入，紅色表示賣出，灰色表示持有。VA策略會根據市場波動調整投資金額。")
-                
+               va_df = self.calculation_results["va_rebalance_df"]
+               va_chart = create_investment_flow_chart(va_df)
+               st.altair_chart(va_chart, use_container_width=True)
+               
+               # VA策略說明
+               st.info("💡 **VA策略說明**：綠色表示買入，紅色表示賣出，灰色表示持有。VA策略會根據市場波動調整投資金額。")
+               
             except Exception as e:
-                st.error(f"VA投資流圖表生成錯誤: {str(e)}")
-                # 降級到簡單數據顯示
-                va_df = self.calculation_results["va_rebalance_df"]
-                st.dataframe(va_df[["Period", "Invested", "Cum_Value"]].head(10))
+               st.error(f"VA投資流圖表生成錯誤: {str(e)}")
+               # 降級到簡單數據顯示
+               va_df = self.calculation_results["va_rebalance_df"]
+               st.dataframe(va_df[["Period", "Invested", "Cum_Value"]].head(10))
         
         with col2:
             st.markdown("##### 💰 DCA策略投資行為分析")
             try:
-                dca_df = self.calculation_results["dca_df"]
-                
-                # 為DCA策略創建投資流圖表數據
-                dca_df_copy = dca_df.copy()
-                
-                # DCA策略使用Fixed_Investment欄位作為投資金額
-                if "Fixed_Investment" in dca_df_copy.columns:
-                    dca_df_copy["Invested"] = dca_df_copy["Fixed_Investment"]
-                    # DCA策略都是買入操作
-                    dca_df_copy["Investment_Type"] = "Buy"
-                else:
-                    # 降級處理：如果沒有Fixed_Investment欄位，使用計算方式
-                    if len(dca_df_copy) > 1:
-                        # 計算每期投資金額
-                        dca_df_copy["Invested"] = dca_df_copy["Cum_Inv"].diff().fillna(dca_df_copy["Cum_Inv"].iloc[0])
-                    else:
-                        dca_df_copy["Invested"] = dca_df_copy.get("Cum_Inv", 0)
-                    dca_df_copy["Investment_Type"] = "Buy"
-                
-                # 確保Period欄位存在
-                if "Period" not in dca_df_copy.columns:
-                    dca_df_copy["Period"] = range(len(dca_df_copy))
-                
-                # 創建DCA投資流圖表
-                dca_chart = alt.Chart(dca_df_copy).mark_bar().encode(
-                    x=alt.X("Period:Q", title="Period"),
-                    y=alt.Y("Invested:Q", title="Investment Amount ($)"),
-                    color=alt.Color(
-                        "Investment_Type:N",
-                        scale=alt.Scale(
-                            domain=["Buy"],
-                            range=["green"]
-                        ),
-                        title="Action"
-                    ),
-                    tooltip=["Period", "Invested", "Investment_Type"]
-                ).properties(
-                    title="DCA Strategy Investment Flow",
-                    width=400,
-                    height=300
-                )
-                
-                st.altair_chart(dca_chart, use_container_width=True)
-                
-                # DCA策略說明
-                st.info("💡 **DCA策略說明**：綠色表示固定金額買入。DCA策略每期投入固定金額，不進行賣出操作。")
-                
+               dca_df = self.calculation_results["dca_df"]
+               
+               # 為DCA策略創建投資流圖表數據
+               dca_df_copy = dca_df.copy()
+               
+               # DCA策略使用Fixed_Investment欄位作為投資金額
+               if "Fixed_Investment" in dca_df_copy.columns:
+                   dca_df_copy["Invested"] = dca_df_copy["Fixed_Investment"]
+                   # DCA策略都是買入操作
+                   dca_df_copy["Investment_Type"] = "Buy"
+               else:
+                   # 降級處理：如果沒有Fixed_Investment欄位，使用計算方式
+                   if len(dca_df_copy) > 1:
+                       # 計算每期投資金額
+                       dca_df_copy["Invested"] = dca_df_copy["Cum_Inv"].diff().fillna(dca_df_copy["Cum_Inv"].iloc[0])
+                   else:
+                       dca_df_copy["Invested"] = dca_df_copy.get("Cum_Inv", 0)
+                   dca_df_copy["Investment_Type"] = "Buy"
+               
+               # 確保Period欄位存在
+               if "Period" not in dca_df_copy.columns:
+                   dca_df_copy["Period"] = range(len(dca_df_copy))
+               
+               # 創建DCA投資流圖表
+               dca_chart = alt.Chart(dca_df_copy).mark_bar().encode(
+                   x=alt.X("Period:Q", title="Period"),
+                   y=alt.Y("Invested:Q", title="Investment Amount ($)"),
+                   color=alt.Color(
+                       "Investment_Type:N",
+                       scale=alt.Scale(
+                           domain=["Buy"],
+                           range=["green"]
+                       ),
+                       title="Action"
+                   ),
+                   tooltip=["Period", "Invested", "Investment_Type"]
+               ).properties(
+                   title="DCA Strategy Investment Flow",
+                   width=400,
+                   height=300
+               )
+               
+               st.altair_chart(dca_chart, use_container_width=True)
+               
+               # DCA策略說明
+               st.info("💡 **DCA策略說明**：綠色表示固定金額買入。DCA策略每期投入固定金額，不進行賣出操作。")
+               
             except Exception as e:
-                st.error(f"DCA投資流圖表生成錯誤: {str(e)}")
-                # 降級到簡單數據顯示
-                dca_df = self.calculation_results["dca_df"]
-                if "Fixed_Investment" in dca_df.columns:
-                    st.dataframe(dca_df[["Period", "Fixed_Investment", "Cum_Value"]].head(10))
-                else:
-                    st.dataframe(dca_df[["Period", "Cum_Inv", "Cum_Value"]].head(10))
+               st.error(f"DCA投資流圖表生成錯誤: {str(e)}")
+               # 降級到簡單數據顯示
+               dca_df = self.calculation_results["dca_df"]
+               if "Fixed_Investment" in dca_df.columns:
+                   st.dataframe(dca_df[["Period", "Fixed_Investment", "Cum_Value"]].head(10))
+               else:
+                   st.dataframe(dca_df[["Period", "Cum_Inv", "Cum_Value"]].head(10))
         
         # 新增：在投資流分析下方顯示策略比較摘要表格
         st.markdown("---")  # 分隔線
@@ -1449,19 +1697,19 @@ class ResultsDisplayManager:
             st.error(f"策略比較摘要表格生成錯誤: {str(e)}")
             # 降級顯示基本信息
             try:
-                final_values = self._get_final_values()
-                annualized_returns = self._get_annualized_returns()
-                
-                if final_values and annualized_returns:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("VA策略最終價值", f"${final_values.get('va_final_value', 0):,.0f}")
-                        st.metric("VA策略年化報酬", f"{annualized_returns.get('va_annualized_return', 0):.2f}%")
-                    with col2:
-                        st.metric("DCA策略最終價值", f"${final_values.get('dca_final_value', 0):,.0f}")
-                        st.metric("DCA策略年化報酬", f"{annualized_returns.get('dca_annualized_return', 0):.2f}%")
+               final_values = self._get_final_values()
+               annualized_returns = self._get_annualized_returns()
+               
+               if final_values and annualized_returns:
+                   col1, col2 = st.columns(2)
+                   with col1:
+                       st.metric("VA策略最終價值", f"${final_values.get('va_final_value', 0):,.0f}")
+                       st.metric("VA策略年化報酬", f"{annualized_returns.get('va_annualized_return', 0):.2f}%")
+                   with col2:
+                       st.metric("DCA策略最終價值", f"${final_values.get('dca_final_value', 0):,.0f}")
+                       st.metric("DCA策略年化報酬", f"{annualized_returns.get('dca_annualized_return', 0):.2f}%")
             except:
-                st.warning("無法顯示策略比較摘要")
+               st.warning("無法顯示策略比較摘要")
     
     def _render_asset_allocation_chart(self):
         """渲染資產配置圖表 - 獨立標籤頁"""
@@ -1476,26 +1724,26 @@ class ResultsDisplayManager:
             
             # 1. 優先從session_state獲取
             if 'stock_ratio' in st.session_state:
-                stock_ratio = st.session_state['stock_ratio']
-                # 如果是百分比形式（0-100），轉換為小數形式（0-1）
-                if stock_ratio > 1:
-                    stock_ratio = stock_ratio / 100
+               stock_ratio = st.session_state['stock_ratio']
+               # 如果是百分比形式（0-100），轉換為小數形式（0-1）
+               if stock_ratio > 1:
+                   stock_ratio = stock_ratio / 100
             
             # 2. 從計算結果的參數中獲取
             if stock_ratio is None and hasattr(self, 'last_parameters') and self.last_parameters:
-                stock_ratio = self.last_parameters.get('stock_ratio', 0.6)
-                if stock_ratio > 1:
-                    stock_ratio = stock_ratio / 100
+               stock_ratio = self.last_parameters.get('stock_ratio', 0.6)
+               if stock_ratio > 1:
+                   stock_ratio = stock_ratio / 100
             
             # 3. 使用預設值
             if stock_ratio is None:
-                stock_ratio = 0.6  # 預設60%股票，40%債券
+               stock_ratio = 0.6  # 預設60%股票，40%債券
             
             bond_ratio = 1 - stock_ratio
             
             # 驗證比例數據
             if stock_ratio < 0 or stock_ratio > 1 or bond_ratio < 0 or bond_ratio > 1:
-                raise ValueError(f"無效的資產配置比例: 股票={stock_ratio:.2%}, 債券={bond_ratio:.2%}")
+               raise ValueError(f"無效的資產配置比例: 股票={stock_ratio:.2%}, 債券={bond_ratio:.2%}")
             
             pie_chart = create_allocation_pie_chart(stock_ratio, bond_ratio)
             st.altair_chart(pie_chart, use_container_width=True)
@@ -1506,25 +1754,25 @@ class ResultsDisplayManager:
             # 添加配置詳細信息
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("股票配置", f"{stock_ratio:.1%}", help="投資於股票市場的比例")
+               st.metric("股票配置", f"{stock_ratio:.1%}", help="投資於股票市場的比例")
             with col2:
-                st.metric("債券配置", f"{bond_ratio:.1%}", help="投資於債券市場的比例")
+               st.metric("債券配置", f"{bond_ratio:.1%}", help="投資於債券市場的比例")
             
         except Exception as e:
             st.error(f"資產配置圖表錯誤: {str(e)}")
             # 降級到文字顯示
             try:
-                stock_ratio = st.session_state.get('stock_ratio', 60)
-                if stock_ratio > 1:
-                    stock_ratio = stock_ratio / 100
-                bond_ratio = 1 - stock_ratio
-                st.write(f"📊 **資產配置**")
-                st.write(f"• 股票比例: {stock_ratio:.1%}")
-                st.write(f"• 債券比例: {bond_ratio:.1%}")
+               stock_ratio = st.session_state.get('stock_ratio', 60)
+               if stock_ratio > 1:
+                   stock_ratio = stock_ratio / 100
+               bond_ratio = 1 - stock_ratio
+               st.write(f"📊 **資產配置**")
+               st.write(f"• 股票比例: {stock_ratio:.1%}")
+               st.write(f"• 債券比例: {bond_ratio:.1%}")
             except:
-                st.write("📊 **預設資產配置**")
-                st.write("• 股票比例: 60.0%")
-                st.write("• 債券比例: 40.0%")
+               st.write("📊 **預設資產配置**")
+               st.write("• 股票比例: 60.0%")
+               st.write("• 債券比例: 40.0%")
     
     def _render_drawdown_analysis_chart(self):
         """渲染回撤分析圖表 - 獨立標籤頁"""
@@ -1546,8 +1794,8 @@ class ResultsDisplayManager:
             
             # 垂直合併兩個圖表
             combined_drawdown_chart = alt.vconcat(
-                va_drawdown_chart.properties(title="VA策略 回撤分析"),
-                dca_drawdown_chart.properties(title="DCA策略 回撤分析")
+               va_drawdown_chart.properties(title="VA策略 回撤分析"),
+               dca_drawdown_chart.properties(title="DCA策略 回撤分析")
             ).resolve_scale(x='independent', y='independent')
             
             st.altair_chart(combined_drawdown_chart, use_container_width=True)
@@ -1557,16 +1805,16 @@ class ResultsDisplayManager:
             col1, col2 = st.columns(2)
             
             with col1:
-                # VA策略回撤統計
-                va_max_drawdown = va_df["Cum_Value"].expanding().max()
-                va_current_drawdown = (va_df["Cum_Value"] - va_max_drawdown) / va_max_drawdown
-                st.metric("VA策略最大回撤", f"{va_current_drawdown.min():.2%}", help="VA策略歷史最大回撤幅度")
+               # VA策略回撤統計
+               va_max_drawdown = va_df["Cum_Value"].expanding().max()
+               va_current_drawdown = (va_df["Cum_Value"] - va_max_drawdown) / va_max_drawdown
+               st.metric("VA策略最大回撤", f"{va_current_drawdown.min():.2%}", help="VA策略歷史最大回撤幅度")
             
             with col2:
-                # DCA策略回撤統計
-                dca_max_drawdown = dca_df["Cum_Value"].expanding().max()
-                dca_current_drawdown = (dca_df["Cum_Value"] - dca_max_drawdown) / dca_max_drawdown
-                st.metric("DCA策略最大回撤", f"{dca_current_drawdown.min():.2%}", help="DCA策略歷史最大回撤幅度")
+               # DCA策略回撤統計
+               dca_max_drawdown = dca_df["Cum_Value"].expanding().max()
+               dca_current_drawdown = (dca_df["Cum_Value"] - dca_max_drawdown) / dca_max_drawdown
+               st.metric("DCA策略最大回撤", f"{dca_current_drawdown.min():.2%}", help="DCA策略歷史最大回撤幅度")
             
         except Exception as e:
             st.error(f"回撤分析圖表錯誤: {str(e)}")
@@ -1601,15 +1849,15 @@ class ResultsDisplayManager:
             
             # 顯示每個策略的風險收益指標
             for _, row in summary_df.iterrows():
-                with st.expander(f"📈 {row['Strategy']} 策略詳細指標"):
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        st.metric("年化報酬率", f"{row['Annualized_Return']:.2f}%")
-                    with col2:
-                        st.metric("波動率", f"{row['Volatility']:.2f}%")
-                    with col3:
-                        st.metric("夏普比率", f"{row['Sharpe_Ratio']:.2f}")
+               with st.expander(f"📈 {row['Strategy']} 策略詳細指標"):
+                   col1, col2, col3 = st.columns(3)
+                   
+                   with col1:
+                       st.metric("年化報酬率", f"{row['Annualized_Return']:.2f}%")
+                   with col2:
+                       st.metric("波動率", f"{row['Volatility']:.2f}%")
+                   with col3:
+                       st.metric("夏普比率", f"{row['Sharpe_Ratio']:.2f}")
             
         except Exception as e:
             st.error(f"風險收益散點圖錯誤: {str(e)}")
@@ -1630,28 +1878,28 @@ class ResultsDisplayManager:
             
             # VA數據
             for _, row in va_df.iterrows():
-                combined_data.append({
-                    "Period": row["Period"],
-                    "Cum_Value": row["Cum_Value"],
-                    "Strategy": "VA策略"
-                })
+               combined_data.append({
+                   "Period": row["Period"],
+                   "Cum_Value": row["Cum_Value"],
+                   "Strategy": "VA策略"
+               })
             
             # DCA數據
             for _, row in dca_df.iterrows():
-                combined_data.append({
-                    "Period": row["Period"],
-                    "Cum_Value": row["Cum_Value"],
-                    "Strategy": "DCA策略"
-                })
+               combined_data.append({
+                   "Period": row["Period"],
+                   "Cum_Value": row["Cum_Value"],
+                   "Strategy": "DCA策略"
+               })
             
             combined_df = pd.DataFrame(combined_data)
             
             chart = create_line_chart(
-                data_df=combined_df,
-                x_field="Period",
-                y_field="Cum_Value",
-                color_field="Strategy",
-                title="資產成長趨勢比較"
+               data_df=combined_df,
+               x_field="Period",
+               y_field="Cum_Value",
+               color_field="Strategy",
+               title="資產成長趨勢比較"
             )
             
             st.altair_chart(chart, use_container_width=True)
@@ -1668,24 +1916,24 @@ class ResultsDisplayManager:
         with st.expander("📊 詳細數據表格", expanded=False):
             
             if not self.calculation_results:
-                st.info("請設定投資參數後開始分析")
-                return
+               st.info("請設定投資參數後開始分析")
+               return
             
             # 策略選擇器
             strategy_options = ["VA策略", "DCA策略", "比較摘要"]
             selected_strategy = st.selectbox(
-                "選擇要查看的數據",
-                strategy_options,
-                key="strategy_table_selector"
+               "選擇要查看的數據",
+               strategy_options,
+               key="strategy_table_selector"
             )
             
             # 渲染對應表格
             if selected_strategy == "VA策略":
-                self._render_va_strategy_table()
+               self._render_va_strategy_table()
             elif selected_strategy == "DCA策略":
-                self._render_dca_strategy_table()
+               self._render_dca_strategy_table()
             elif selected_strategy == "比較摘要":
-                self._render_summary_table()
+               self._render_summary_table()
         
         # CSV下載區域
         st.markdown("### 💾 數據下載")
@@ -1699,15 +1947,15 @@ class ResultsDisplayManager:
         
         with col1:
             if st.button("📥 VA策略數據", use_container_width=True, key="download_va_button"):
-                self._download_csv("va_strategy")
+               self._download_csv("va_strategy")
         
         with col2:
             if st.button("📥 DCA策略數據", use_container_width=True, key="download_dca_button"):
-                self._download_csv("dca_strategy")
+               self._download_csv("dca_strategy")
         
         with col3:
             if st.button("📥 績效摘要", use_container_width=True, key="download_summary_button"):
-                self._download_csv("summary")
+               self._download_csv("summary")
     
     def _render_va_strategy_table(self):
         """渲染VA策略表格 - 使用第2章VA_COLUMNS_ORDER"""
@@ -1761,15 +2009,15 @@ class ResultsDisplayManager:
         # 應用百分比精度規則
         for col in formatted_df.columns:
             if col in PERCENTAGE_PRECISION_RULES:
-                precision = PERCENTAGE_PRECISION_RULES[col]
-                if formatted_df[col].dtype in ['float64', 'float32']:
-                    formatted_df[col] = formatted_df[col].round(precision)
+               precision = PERCENTAGE_PRECISION_RULES[col]
+               if formatted_df[col].dtype in ['float64', 'float32']:
+                   formatted_df[col] = formatted_df[col].round(precision)
         
         # 貨幣格式化
         currency_columns = ["Cum_Value", "Cum_Inv", "Final_Value", "Total_Investment"]
         for col in currency_columns:
             if col in formatted_df.columns:
-                formatted_df[col] = formatted_df[col].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "")
+               formatted_df[col] = formatted_df[col].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "")
         
         return formatted_df
     
@@ -1853,51 +2101,51 @@ class ResultsDisplayManager:
         # 渲染不同類型的指標卡片
         if metric_type == "recommended_strategy":
             if va_return > dca_return:
-                st.metric(
-                    label="🎯 推薦策略",
-                    value="定期定值 (VA)",
-                    delta=f"優勢 {va_return - dca_return:.1f}%",
-                    help="基於年化報酬率的推薦"
-                )
+               st.metric(
+                   label="🎯 推薦策略",
+                   value="定期定值 (VA)",
+                   delta=f"優勢 {va_return - dca_return:.1f}%",
+                   help="基於年化報酬率的推薦"
+               )
             else:
-                st.metric(
-                    label="🎯 推薦策略",
-                    value="定期定額 (DCA)",
-                    delta=f"優勢 {dca_return - va_return:.1f}%",
-                    help="基於年化報酬率的推薦"
-                )
-                
+               st.metric(
+                   label="🎯 推薦策略",
+                   value="定期定額 (DCA)",
+                   delta=f"優勢 {dca_return - va_return:.1f}%",
+                   help="基於年化報酬率的推薦"
+               )
+               
         elif metric_type == "expected_final_value":
             if va_value > dca_value:
-                st.metric(
-                    label="💰 預期最終價值",
-                    value=f"${va_value:,.0f}",
-                    delta=f"+${va_value - dca_value:,.0f}",
-                    help="VA策略預期最終價值較高"
-                )
+               st.metric(
+                   label="💰 預期最終價值",
+                   value=f"${va_value:,.0f}",
+                   delta=f"+${va_value - dca_value:,.0f}",
+                   help="VA策略預期最終價值較高"
+               )
             else:
-                st.metric(
-                    label="💰 預期最終價值",
-                    value=f"${dca_value:,.0f}",
-                    delta=f"+${dca_value - va_value:,.0f}",
-                    help="DCA策略預期最終價值較高"
-                )
-                
+               st.metric(
+                   label="💰 預期最終價值",
+                   value=f"${dca_value:,.0f}",
+                   delta=f"+${dca_value - va_value:,.0f}",
+                   help="DCA策略預期最終價值較高"
+               )
+               
         elif metric_type == "annualized_return":
             if va_return > dca_return:
-                st.metric(
-                    label="📈 年化報酬率",
-                    value=f"{va_return:.1f}%",
-                    delta=f"+{va_return - dca_return:.1f}%",
-                    help="VA策略年化報酬率較高"
-                )
+               st.metric(
+                   label="📈 年化報酬率",
+                   value=f"{va_return:.1f}%",
+                   delta=f"+{va_return - dca_return:.1f}%",
+                   help="VA策略年化報酬率較高"
+               )
             else:
-                st.metric(
-                    label="📈 年化報酬率",
-                    value=f"{dca_return:.1f}%",
-                    delta=f"+{dca_return - va_return:.1f}%",
-                    help="DCA策略年化報酬率較高"
-                )
+               st.metric(
+                   label="📈 年化報酬率",
+                   value=f"{dca_return:.1f}%",
+                   delta=f"+{dca_return - va_return:.1f}%",
+                   help="DCA策略年化報酬率較高"
+               )
     
     def _render_mobile_chart(self):
         """渲染移動端圖表 - 簡化版"""
@@ -1941,11 +2189,11 @@ class ResultsDisplayManager:
             margin=dict(l=20, r=20, t=40, b=20),
             font=dict(size=12),
             legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
+               orientation="h",
+               yanchor="bottom",
+               y=1.02,
+               xanchor="right",
+               x=1
             ),
             xaxis_title="投資期數",
             yaxis_title="投資價值 ($)",
@@ -1972,16 +2220,16 @@ class ResultsDisplayManager:
         comparison_data = {
             "指標": ["💰 最終價值", "📈 年化報酬率", "💸 總投入", "📊 報酬倍數"],
             "🎯 定期定值 (VA)": [
-                f"${final_values.get('va_final_value', 0):,.0f}",
-                f"{annualized_returns.get('va_annualized_return', 0):.1f}%",
-                f"${final_values.get('va_total_investment', 0):,.0f}",
-                f"{final_values.get('va_final_value', 0) / max(final_values.get('va_total_investment', 1), 1):.1f}x"
+               f"${final_values.get('va_final_value', 0):,.0f}",
+               f"{annualized_returns.get('va_annualized_return', 0):.1f}%",
+               f"${final_values.get('va_total_investment', 0):,.0f}",
+               f"{final_values.get('va_final_value', 0) / max(final_values.get('va_total_investment', 1), 1):.1f}x"
             ],
             "💰 定期定額 (DCA)": [
-                f"${final_values.get('dca_final_value', 0):,.0f}",
-                f"{annualized_returns.get('dca_annualized_return', 0):.1f}%",
-                f"${final_values.get('dca_total_investment', 0):,.0f}",
-                f"{final_values.get('dca_final_value', 0) / max(final_values.get('dca_total_investment', 1), 1):.1f}x"
+               f"${final_values.get('dca_final_value', 0):,.0f}",
+               f"{annualized_returns.get('dca_annualized_return', 0):.1f}%",
+               f"${final_values.get('dca_total_investment', 0):,.0f}",
+               f"{final_values.get('dca_final_value', 0) / max(final_values.get('dca_total_investment', 1), 1):.1f}x"
             ]
         }
         

@@ -1,0 +1,44 @@
+{
+  "validation_timestamp": "2025-07-08T12:03:20.463400",
+  "overall_score": 0.7017417218624846,
+  "data_quality_metrics": {
+    "price_jump_rate": 1.0,
+    "yield_stability": 1.0,
+    "trend_consistency": 0.7399922654103531,
+    "volatility_accuracy": 0,
+    "correlation_reasonability": 1.0,
+    "overall_score": 0.7479984530820707
+  },
+  "calculation_accuracy_metrics": {
+    "formula_verification_rate": 1.0,
+    "boundary_condition_pass_rate": 1.0,
+    "precision_maintenance_rate": 0.5583333333333333,
+    "error_handling_rate": 0.8,
+    "overall_score": 0.8395833333333333
+  },
+  "result_reasonability_metrics": {
+    "strategy_difference_significance": 1.0,
+    "risk_return_reasonability": 1.0,
+    "max_drawdown_reasonability": 0.07057351668819944,
+    "long_term_growth_consistency": 0.0,
+    "overall_score": 0.5176433791720498
+  },
+  "recommendations": [
+    "建議校正波動率參數，使其更接近設定值"
+  ],
+  "parameters_tested": {
+    "investment_amount": 10000,
+    "investment_periods": 30,
+    "investment_frequency": "annually",
+    "start_date": "2020-01-01 00:00:00",
+    "stock_ratio": 60,
+    "bond_ratio": 40,
+    "rebalance_threshold_upper": 75,
+    "rebalance_threshold_lower": 45
+  },
+  "data_summary": {
+    "market_data_periods": 30,
+    "va_strategy_periods": 30,
+    "dca_strategy_periods": 30
+  }
+}

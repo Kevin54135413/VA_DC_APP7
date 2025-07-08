@@ -1,0 +1,272 @@
+{
+  "report_metadata": {
+    "generated_at": "2025-07-08T12:41:42.043527",
+    "validation_plan_version": "1.0",
+    "total_test_categories": 3,
+    "report_generator": "FinalValidationReportGenerator"
+  },
+  "executive_summary": {
+    "overall_score": 0.7970824832000115,
+    "overall_status": "GOOD",
+    "critical_issues_count": 1,
+    "warnings_count": 1,
+    "strengths_count": 4,
+    "high_priority_recommendations": 3
+  },
+  "detailed_performance": {
+    "overall_score": 0.7970824832000115,
+    "category_scores": {
+      "data_quality": 0.7479984530820707,
+      "calculation_accuracy": 0.8395833333333333,
+      "boundary_conditions": 1.0,
+      "consistency": 0.6007481463846419
+    },
+    "critical_issues": [
+      "波動率偏差過大，需要校正波動率參數"
+    ],
+    "warnings": [
+      "精度保持需要改進"
+    ],
+    "strengths": [
+      "股債相關性合理",
+      "債券殖利率穩定性良好",
+      "公式驗證率優秀",
+      "邊界條件測試全部通過"
+    ]
+  },
+  "test_results_summary": {
+    "simulation_validation": {
+      "overall_score": 0.7017417218624846,
+      "data_quality_score": 0.7479984530820707,
+      "calculation_accuracy_score": 0.8395833333333333,
+      "result_reasonability_score": 0.5176433791720498
+    },
+    "boundary_condition": {
+      "pass_rate": 1.0,
+      "total_tests": 8,
+      "passed_tests": 8
+    },
+    "consistency_verification": {
+      "pass_rate": 0.6,
+      "total_tests": 5,
+      "passed_tests": 3
+    }
+  },
+  "improvement_recommendations": [
+    {
+      "priority": "HIGH",
+      "category": "數據品質",
+      "issue": "波動率偏差過大",
+      "current_value": "0.00",
+      "target_value": "> 0.8",
+      "specific_action": "調整 stock_volatility 參數從 0.20 到 0.23，使實際波動率更接近設定的 25%",
+      "implementation": "src/ui/results_display.py 第 868 行",
+      "expected_impact": "提高波動率匹配度至 80% 以上"
+    },
+    {
+      "priority": "HIGH",
+      "category": "策略合理性",
+      "issue": "最大回撤不足",
+      "current_value": "0.07",
+      "target_value": "> 0.7",
+      "specific_action": "增加市場下跌情境，確保策略有 5%-15% 的真實回撤風險",
+      "implementation": "在模擬數據中加入週期性下跌階段",
+      "expected_impact": "使策略表現更符合真實市場風險"
+    },
+    {
+      "priority": "HIGH",
+      "category": "長期一致性",
+      "issue": "成長率偏差過大",
+      "current_value": "0.00",
+      "target_value": "> 0.7",
+      "specific_action": "調整 stock_growth_rate 從 0.015 到 0.006，使年化成長率接近設定的 2.4%",
+      "implementation": "src/ui/results_display.py 第 867 行",
+      "expected_impact": "長期成長軌跡符合預期，偏差控制在 20% 以內"
+    },
+    {
+      "priority": "LOW",
+      "category": "系統優化",
+      "issue": "精度保持",
+      "current_value": "0.5-0.6",
+      "target_value": "> 0.9",
+      "specific_action": "統一數值精度格式，限制小數位數在 4 位以內",
+      "implementation": "在所有計算結果輸出前進行格式化",
+      "expected_impact": "提高數據呈現的專業性和一致性"
+    }
+  ],
+  "implementation_roadmap": {
+    "immediate_actions": [
+      {
+        "action": "調整 stock_volatility 參數從 0.20 到 0.23，使實際波動率更接近設定的 25%",
+        "implementation": "src/ui/results_display.py 第 868 行",
+        "expected_impact": "提高波動率匹配度至 80% 以上"
+      },
+      {
+        "action": "增加市場下跌情境，確保策略有 5%-15% 的真實回撤風險",
+        "implementation": "在模擬數據中加入週期性下跌階段",
+        "expected_impact": "使策略表現更符合真實市場風險"
+      },
+      {
+        "action": "調整 stock_growth_rate 從 0.015 到 0.006，使年化成長率接近設定的 2.4%",
+        "implementation": "src/ui/results_display.py 第 867 行",
+        "expected_impact": "長期成長軌跡符合預期，偏差控制在 20% 以內"
+      }
+    ],
+    "short_term_goals": [],
+    "long_term_improvements": [
+      {
+        "action": "統一數值精度格式，限制小數位數在 4 位以內",
+        "implementation": "在所有計算結果輸出前進行格式化",
+        "expected_impact": "提高數據呈現的專業性和一致性"
+      }
+    ]
+  },
+  "quality_metrics": {
+    "data_completeness": 1.0,
+    "calculation_reliability": 0.8395833333333333,
+    "result_credibility": 0.5176433791720498,
+    "data_consistency": 0.7479984530820707,
+    "robustness": 1.0,
+    "stability": 0.6
+  },
+  "raw_reports": {
+    "simulation_validation": {
+      "validation_timestamp": "2025-07-08T12:03:20.463400",
+      "overall_score": 0.7017417218624846,
+      "data_quality_metrics": {
+        "price_jump_rate": 1.0,
+        "yield_stability": 1.0,
+        "trend_consistency": 0.7399922654103531,
+        "volatility_accuracy": 0,
+        "correlation_reasonability": 1.0,
+        "overall_score": 0.7479984530820707
+      },
+      "calculation_accuracy_metrics": {
+        "formula_verification_rate": 1.0,
+        "boundary_condition_pass_rate": 1.0,
+        "precision_maintenance_rate": 0.5583333333333333,
+        "error_handling_rate": 0.8,
+        "overall_score": 0.8395833333333333
+      },
+      "result_reasonability_metrics": {
+        "strategy_difference_significance": 1.0,
+        "risk_return_reasonability": 1.0,
+        "max_drawdown_reasonability": 0.07057351668819944,
+        "long_term_growth_consistency": 0.0,
+        "overall_score": 0.5176433791720498
+      },
+      "recommendations": [
+        "建議校正波動率參數，使其更接近設定值"
+      ],
+      "parameters_tested": {
+        "investment_amount": 10000,
+        "investment_periods": 30,
+        "investment_frequency": "annually",
+        "start_date": "2020-01-01 00:00:00",
+        "stock_ratio": 60,
+        "bond_ratio": 40,
+        "rebalance_threshold_upper": 75,
+        "rebalance_threshold_lower": 45
+      },
+      "data_summary": {
+        "market_data_periods": 30,
+        "va_strategy_periods": 30,
+        "dca_strategy_periods": 30
+      }
+    },
+    "boundary_condition": {
+      "total_tests": 8,
+      "passed_tests": 8,
+      "pass_rate": 1.0,
+      "test_details": [
+        {
+          "test_name": "minimum_values",
+          "passed": true,
+          "message": "最小值測試通過"
+        },
+        {
+          "test_name": "maximum_values",
+          "passed": true,
+          "message": "最大值測試通過"
+        },
+        {
+          "test_name": "extreme_ratios",
+          "passed": true,
+          "message": "極端比例測試通過：4/4"
+        },
+        {
+          "test_name": "short_periods",
+          "passed": true,
+          "message": "短期測試通過：生成12期"
+        },
+        {
+          "test_name": "long_periods",
+          "passed": true,
+          "message": "長期測試通過：成長2.74倍"
+        },
+        {
+          "test_name": "high_frequency",
+          "passed": true,
+          "message": "高頻測試通過：平均間隔30.4天"
+        },
+        {
+          "test_name": "edge_dates",
+          "passed": true,
+          "message": "邊緣日期測試通過：首期2023-12-31"
+        },
+        {
+          "test_name": "zero_amounts",
+          "passed": true,
+          "message": "零值邊界測試通過"
+        }
+      ],
+      "overall_status": "PASS"
+    },
+    "consistency_verification": {
+      "total_tests": 5,
+      "passed_tests": 3,
+      "pass_rate": 0.6,
+      "test_details": {
+        "reproducibility": {
+          "test_name": "reproducibility",
+          "passed": "True",
+          "score": 0.3333333333333333,
+          "message": "可重現性測試：平均一致性0.333"
+        },
+        "parameter_sensitivity": {
+          "test_name": "parameter_sensitivity",
+          "passed": "False",
+          "score": 0.5249999999999999,
+          "message": "參數敏感性測試：平均評分0.525"
+        },
+        "frequency_consistency": {
+          "test_name": "frequency_consistency",
+          "passed": "False",
+          "score": 0.5,
+          "message": "頻率一致性測試：期數檢查True，品質評分0.500"
+        },
+        "temporal_stability": {
+          "test_name": "temporal_stability",
+          "passed": "True",
+          "score": 0.8454073985898765,
+          "message": "時間穩定性測試：穩定性評分0.845"
+        },
+        "statistical_properties": {
+          "test_name": "statistical_properties",
+          "passed": "True",
+          "score": 0.8,
+          "message": "統計特性測試：4/5 檢查通過",
+          "details": {
+            "mean_return": 0.04428976681062939,
+            "volatility": 0.06883305498837884,
+            "skewness": -0.8280255244342092,
+            "kurtosis": -0.755785134278872,
+            "min_return": -0.093484746860328,
+            "max_return": 0.10001019991840057
+          }
+        }
+      },
+      "overall_status": "PARTIAL_PASS"
+    }
+  }
+}

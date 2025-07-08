@@ -969,6 +969,74 @@ class ParameterManager:
         # 顯示選擇的數據源資訊
         st.info(f"📊 已選擇: {selected_option['description']}")
         
+        # 模擬數據進階控制區域
+        if selected_option['value'] == 'simulation':
+            st.markdown("---")
+            st.markdown("#### 🎲 模擬數據控制")
+            
+            # 重新生成控制
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.markdown("**重新生成模擬數據**")
+                st.caption("點擊按鈕生成新的隨機市場情境")
+            
+            with col2:
+                if st.button("🔄 重新生成", 
+                           key="regenerate_simulation_data", 
+                           use_container_width=True,
+                           help="生成新的模擬數據，使用不同的隨機種子"):
+                    # 更新隨機種子強制重新生成
+                    import time
+                    new_seed = int(time.time() * 1000) % 100000
+                    st.session_state.simulation_seed = new_seed
+                    st.session_state.simulation_regeneration_count = st.session_state.get('simulation_regeneration_count', 0) + 1
+                    st.success(f"✅ 已生成新的模擬數據 (種子: {new_seed})")
+                    st.rerun()
+            
+            # 模擬數據配置選項
+            with st.expander("⚙️ 進階設定", expanded=False):
+                st.markdown("**隨機種子控制**")
+                
+                # 自動生成 vs 手動設定
+                seed_mode = st.radio(
+                    "種子模式",
+                    ["自動生成", "手動設定"],
+                    key="simulation_seed_mode",
+                    help="自動生成每次都會產生不同結果，手動設定可重現相同結果"
+                )
+                
+                if seed_mode == "手動設定":
+                    custom_seed = st.number_input(
+                        "自訂隨機種子",
+                        min_value=1,
+                        max_value=99999,
+                        value=st.session_state.get('simulation_seed', 12345),
+                        key="custom_simulation_seed",
+                        help="輸入1-99999之間的數字作為隨機種子"
+                    )
+                    st.session_state.simulation_seed = custom_seed
+                
+                # 市場情境偏好
+                st.markdown("**市場情境偏好**")
+                market_bias = st.selectbox(
+                    "市場趨勢偏好",
+                    ["隨機組合", "偏向牛市", "偏向熊市", "平衡市場"],
+                    key="simulation_market_bias",
+                    help="影響牛市/熊市週期的分佈比例"
+                )
+                st.session_state.simulation_market_bias = market_bias
+                
+                # 波動性設定
+                volatility_level = st.select_slider(
+                    "波動性水準",
+                    ["低波動", "中波動", "高波動"],
+                    value="中波動",
+                    key="simulation_volatility_level",
+                    help="調整價格變動的劇烈程度"
+                )
+                st.session_state.simulation_volatility_level = volatility_level
+        
         # 顯示智能回退機制說明
         if selected_option['value'] == 'real_data':
             fallback_config = param["intelligent_fallback"]
@@ -1008,10 +1076,6 @@ class ParameterManager:
 FRED_API_KEY = "your_fred_key_here"''', language="toml")
                     
                     st.info("💡 **提示**: 即使沒有API金鑰，系統也能完美運行所有功能！")
-        
-        elif selected_option['value'] == 'simulation':
-            st.success("✅ 已選擇模擬數據")
-            st.info("🎲 將使用基於歷史統計的模擬數據進行分析")
         
         # 顯示第1章整合資訊
         if st.checkbox("🔧 顯示技術整合資訊", key="show_data_source_tech_info"):

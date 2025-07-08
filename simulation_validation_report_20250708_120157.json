@@ -1,0 +1,46 @@
+{
+  "validation_timestamp": "2025-07-08T12:01:57.308938",
+  "overall_score": 0.6492219974258587,
+  "data_quality_metrics": {
+    "price_jump_rate": 0,
+    "yield_stability": 1.0,
+    "trend_consistency": 0.8736390826948195,
+    "volatility_accuracy": 0.708213889680853,
+    "correlation_reasonability": 1.0,
+    "overall_score": 0.7163705944751345
+  },
+  "calculation_accuracy_metrics": {
+    "formula_verification_rate": 1.0,
+    "boundary_condition_pass_rate": 1.0,
+    "precision_maintenance_rate": 0.5083333333333333,
+    "error_handling_rate": 0.8,
+    "overall_score": 0.8270833333333334
+  },
+  "result_reasonability_metrics": {
+    "strategy_difference_significance": 0.6168482578764345,
+    "risk_return_reasonability": 1.0,
+    "max_drawdown_reasonability": 0.0,
+    "long_term_growth_consistency": 0.0,
+    "overall_score": 0.4042120644691086
+  },
+  "recommendations": [
+    "建議調整價格生成邏輯，減少異常跳躍",
+    "建議校正波動率參數，使其更接近設定值",
+    "建議增加策略間的差異化，使結果更具區別度"
+  ],
+  "parameters_tested": {
+    "investment_amount": 10000,
+    "investment_periods": 30,
+    "investment_frequency": "annually",
+    "start_date": "2020-01-01 00:00:00",
+    "stock_ratio": 60,
+    "bond_ratio": 40,
+    "rebalance_threshold_upper": 75,
+    "rebalance_threshold_lower": 45
+  },
+  "data_summary": {
+    "market_data_periods": 30,
+    "va_strategy_periods": 30,
+    "dca_strategy_periods": 30
+  }
+}
