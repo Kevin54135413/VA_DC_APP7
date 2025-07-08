@@ -741,14 +741,37 @@ class ResultsDisplayManager:
                        bond_yield_change = np.random.normal(0, 0.15)
                        bond_yield_end = round(max(0.5, min(8.0, bond_yield_origin + bond_yield_change)), 4)
                else:
-                   # 模擬數據期間：使用連續性保證的波動模型
+                   # 模擬數據期間：使用與_generate_fallback_data相同的市場週期邏輯
+                   # 修正：需要在函數開始時預先生成市場週期，而非在此處重新生成
+                   # 這裡改為使用簡化但連續的模擬邏輯，確保價格連續性
                    base_seed = 42
                    np.random.seed(base_seed + period * 17 + int(start_date.timestamp()) % 1000)
                    
-                   # 控制股票價格變化幅度，避免巨大跳躍
-                   controlled_volatility = 0.08  # 8%波動，比真實數據期間更小
-                   stock_return = np.random.normal(0.015, controlled_volatility)
-                   spy_price_end = round(spy_price_origin * (1 + stock_return), 2)
+                   # 使用連續性保證的長期成長模型
+                   # 計算期間時間參數 - 確保與parameter頻率格式一致
+                   freq_lower = parameters.get("investment_frequency", "annually").lower()
+                   if freq_lower == 'monthly':
+                       dt = 1/12
+                   elif freq_lower == 'quarterly':
+                       dt = 1/4
+                   elif freq_lower == 'semi_annually':
+                       dt = 1/2
+                   else:  # annually
+                       dt = 1
+                   
+                   # 使用長期股市成長預期：年化7-10%（歷史S&P 500平均）
+                   # 而非每期隨機決定牛熊市
+                   base_annual_return = 0.085  # 8.5%年化報酬率（歷史平均）
+                   annual_volatility = 0.16  # 16%年化波動率（歷史平均）
+                   
+                   # 加入週期性調整（基於期間位置的緩慢變化）
+                   cycle_adjustment = 0.02 * np.sin(2 * np.pi * period / (total_periods / 3))  # 3個大週期
+                   adjusted_annual_return = base_annual_return + cycle_adjustment
+                   
+                   # 使用幾何布朗運動計算期間報酬率
+                   Z = np.random.normal(0, 1)
+                   period_return = (adjusted_annual_return - annual_volatility**2/2) * dt + annual_volatility * np.sqrt(dt) * Z
+                   spy_price_end = round(spy_price_origin * (1 + period_return), 2)
                    
                    # 確保價格變化在合理範圍內
                    price_change_ratio = abs(spy_price_end - spy_price_origin) / spy_price_origin
