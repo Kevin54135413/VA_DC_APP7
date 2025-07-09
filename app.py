@@ -28,7 +28,7 @@ from typing import Dict, Any, Optional, Union, List
 # 應用版本信息
 APP_VERSION = "v4.0.0"
 APP_VERSION_NAME = "市場模擬優化版"
-APP_UPDATE_DATE = "2025年1月8日"
+APP_UPDATE_DATE = "2025年7月8日"
 
 # 添加src目錄到Python路徑
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
