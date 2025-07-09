@@ -1,4 +1,4 @@
-# 🚀 VA_DC_APP7 部署清單
+# 🚀 Investment-Portfolio-Analyzer 部署清單
 
 ## ✅ 部署前檢查
 

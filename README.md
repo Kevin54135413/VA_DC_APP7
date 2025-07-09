@@ -147,7 +147,7 @@ python test_chapter1.py
 ## 目錄結構
 
 ```
-VA_DC_APP7/
+Investment-Portfolio-Analyzer/
 ├── src/                      # 源代碼目錄
 │   ├── models/              # 數據模型
 │   │   └── data_models.py   # 核心數據結構
@@ -250,4 +250,4 @@ print(f"數據完整度: {quality_report['statistics']['data_completeness']}")
 
 ## 授權聲明
 
-本專案依據需求規格文件開發，僅供學習和研究使用。 # VA_DC_APP7
+本專案依據需求規格文件開發，僅供學習和研究使用。 # Investment-Portfolio-Analyzer
